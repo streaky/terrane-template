@@ -1,7 +1,7 @@
 namespace template-demo
 
 from /core/collections import list, map
-from /template-engine import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html
+from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html
 
 function badge string; value template-value
     return '<strong>'.concat; (escape-html; value.text), '</strong>'

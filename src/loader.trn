@@ -1,4 +1,4 @@
-namespace template-engine
+namespace streaky/template
 
 from /core/collections import list
 from /core/encodings import utf8

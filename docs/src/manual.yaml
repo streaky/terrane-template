@@ -1,10 +1,10 @@
 format: 1
 publication:
-  id: template-engine
+  id: template
   kind: reference
 imports: []
-title: Template Engine
-landing: template-engine.guide.introduction
+title: Template
+landing: template.guide.introduction
 navigation:
   - group: Start here
     numbering: none

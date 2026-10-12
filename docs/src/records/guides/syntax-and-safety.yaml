@@ -1,5 +1,5 @@
 format: 1
-id: template-engine.guide.syntax-and-safety
+id: template.guide.syntax-and-safety
 kind: topic
 
 surface: null
@@ -108,9 +108,9 @@ documentation:
         there is no process-global context.
   sections: []
   see-also:
-    - template-engine.guide.introduction
-    - template-engine.api.template-engine
-    - template-engine.api.errors-and-compilation
+    - template.guide.introduction
+    - template.api.template-engine
+    - template.api.errors-and-compilation
 
 provenance:
   specification: null

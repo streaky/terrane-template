@@ -1,5 +1,5 @@
 format: 1
-id: template-engine.api.errors-and-compilation
+id: template.api.errors-and-compilation
 kind: topic
 
 surface: null
@@ -42,7 +42,7 @@ documentation:
       target: null
       timeout-ms: null
       source: |-
-        from /template-engine import compile-template, template-engine, text-value
+        from /streaky/template import compile-template, template-engine, text-value
 
         engine = instance template-engine;
         engine.assign; 'name', (text-value; 'Ada')
@@ -62,8 +62,8 @@ documentation:
         not turn these failures into empty output.
   sections: []
   see-also:
-    - template-engine.api.template-engine
-    - template-engine.guide.syntax-and-safety
+    - template.api.template-engine
+    - template.guide.syntax-and-safety
 
 provenance:
   specification: null

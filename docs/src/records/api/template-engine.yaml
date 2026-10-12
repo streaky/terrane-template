@@ -1,5 +1,5 @@
 format: 1
-id: template-engine.api.template-engine
+id: template.api.template-engine
 kind: topic
 
 surface: null
@@ -25,7 +25,7 @@ documentation:
     - type: markdown
       markdown: |-
         Create an engine with `instance template-engine;` after importing the class from
-        `/template-engine`. `assign(name, value)` stores a template value under a simple name;
+        `/streaky/template`. `assign(name, value)` stores a template value under a simple name;
         `assign-complex(name, fields)` wraps a string-to-value map as an object.
         `assigned(name)` reports whether a value is set. `append(name, text)` appends to an
         existing text value or creates one, and raises `template-error` if the existing value
@@ -38,7 +38,7 @@ documentation:
       target: null
       timeout-ms: null
       source: |-
-        from /template-engine import template-engine, template-value, text-value, escape-html
+        from /streaky/template import template-engine, template-value, text-value, escape-html
 
         function badge string; value template-value
             return '<strong>'.concat; (escape-html; value.text), '</strong>'
@@ -86,7 +86,7 @@ documentation:
       target: null
       timeout-ms: null
       source: |-
-        from /template-engine import template-engine
+        from /streaky/template import template-engine
 
         engine = instance template-engine;
         engine.set-string-autoescape; false
@@ -105,9 +105,9 @@ documentation:
         with Terrane's canonical text conversion through `''.concat; count`.
   sections: []
   see-also:
-    - template-engine.api.values
-    - template-engine.api.errors-and-compilation
-    - template-engine.guide.syntax-and-safety
+    - template.api.values
+    - template.api.errors-and-compilation
+    - template.guide.syntax-and-safety
 
 provenance:
   specification: null

@@ -1,9 +1,9 @@
-package = "template-engine"
+package = "streaky/template"
 artifact = "library"
 rust-toolchain = "pinned"
 
 [namespaces]
-template-engine = "src"
+"streaky/template" = "src"
 
 [profile]
 capabilities = ["filesystem"]

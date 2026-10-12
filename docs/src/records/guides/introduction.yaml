@@ -1,5 +1,5 @@
 format: 1
-id: template-engine.guide.introduction
+id: template.guide.introduction
 kind: topic
 
 surface: null
@@ -14,26 +14,27 @@ lifecycle:
 
 documentation:
   status: complete
-  title: "Template engine"
+  title: "Template"
   title-style: text
   summary: >-
     Render trusted, file-backed templates with explicit values using a compact engine
     implemented in Terrane.
   tags:
-    - "template-engine"
+    - "template"
     - "templates"
   blocks:
     - type: markdown
       markdown: |-
-        `template-engine` provides explicit text, boolean, list, object, and empty values;
+        `template` provides explicit text, boolean, list, object, and empty values;
         strict interpolation; conditionals; list iteration; includes; and registered widgets.
         It is pure Terrane and has no native Rust package dependencies. It deliberately does
         not implement full Jinja syntax, expressions, inheritance, macros, or automatic
         reflection over host objects.
     - type: markdown
       markdown: |-
-        Add the package and its filesystem effect to the consumer manifest. The sibling
-        path below is illustrative and should be adjusted for the consuming package.
+        Add the package and its filesystem effect to the consumer manifest. Its manifest
+        identity and public namespace are `streaky/template`; `template` is the short
+        dependency name. Adjust the illustrative sibling path for the consuming package.
     - type: example
       id: dependency-and-profile
       title: "Dependency and filesystem capability"
@@ -43,7 +44,7 @@ documentation:
       timeout-ms: null
       source: |-
         [terrane-dependencies]
-        template-engine = { path = "../template-engine" }
+        template = { path = "../template" }
 
         [profile]
         capabilities = ["filesystem"]
@@ -52,7 +53,7 @@ documentation:
       markdown: null
     - type: markdown
       markdown: |-
-        Run the included demo from `packages/template-engine/demo`: invoke
+        Run the included demo from `packages/template/demo`: invoke
         `../../../target/debug/terrane run .` for a repository-built binary, or `terrane run .` when the
         compiler is installed. It uses `templates/page.html` and demonstrates object/list
         assignment, escaping, includes, and a widget.
@@ -62,16 +63,16 @@ documentation:
       blocks:
         - type: markdown
           markdown: |-
-            Read [[template-engine.guide.syntax-and-safety]] for supported syntax and trust
-            boundaries, then consult [[template-engine.api.values]],
-            [[template-engine.api.template-engine]], and
-            [[template-engine.api.errors-and-compilation]] for public types and operations.
+            Read [[template.guide.syntax-and-safety]] for supported syntax and trust
+            boundaries, then consult [[template.api.values]],
+            [[template.api.template-engine]], and
+            [[template.api.errors-and-compilation]] for public types and operations.
       sections: []
   see-also:
-    - template-engine.guide.syntax-and-safety
-    - template-engine.api.values
-    - template-engine.api.template-engine
-    - template-engine.api.errors-and-compilation
+    - template.guide.syntax-and-safety
+    - template.api.values
+    - template.api.template-engine
+    - template.api.errors-and-compilation
 
 provenance:
   specification: null

@@ -1,4 +1,4 @@
-# template-engine
+# template
 
 A small, pure Terrane template engine for rendering trusted templates with explicitly supplied values. It supports interpolation, conditionals, list loops, includes, and registered widgets; it is not a full Jinja implementation.
 
@@ -13,13 +13,16 @@ Declare the sibling package and filesystem capability in the consuming package m
 
 ```toml
 [terrane-dependencies]
-template-engine = { path = "../template-engine" }
+template = { path = "../template" }
 
 [profile]
 capabilities = ["filesystem"]
 ```
 
-Import the public API from `/template-engine`. Create an `instance template-engine`, assign values with `assign` or `assign-complex`, register template search directories with `add-path`, and render source with `render` or a file with `fetch`. `render-compiled` accepts a `compiled-template` returned by `compile-template`; compile once to reuse parsed templates. `display` fetches and prints with a trailing newline; `fetch` returns the rendered string without printing. See the reference manual in `docs/src/manual.yaml`.
+Import the public API from `/streaky/template`. Create an `instance template-engine;`, assign values with `assign` or `assign-complex`, register template search directories with `add-path`, and render source with `render` or a file with `fetch`. `render-compiled` accepts a `compiled-template` returned by `compile-template`; compile once to reuse parsed templates. `display` fetches and prints with a trailing newline; `fetch` returns the rendered string without printing. See the reference manual in `docs/src/manual.yaml`.
+
+The short package name is `template`; its manifest identity is `streaky/template`,
+matching its namespace as required for a Terrane library.
 
 ## Safety and limits
 
@@ -45,7 +48,7 @@ The engine does not sandbox template authors. Template files are limited to 1 Mi
 
 ## Verify the package
 
-From `packages/template-engine`, run:
+From `packages/template`, run:
 
 ```sh
 terrane test --argument "$PWD/tests/fixtures" .

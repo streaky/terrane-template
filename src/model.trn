@@ -1,4 +1,4 @@
-namespace template-engine
+namespace streaky/template
 from /core/collections import list, map
 from /core/errors import throwable
 

@@ -1,5 +1,5 @@
 format: 1
-id: template-engine.api.values
+id: template.api.values
 kind: topic
 
 surface: null
@@ -25,7 +25,7 @@ documentation:
     - type: markdown
       markdown: |-
         Import `template-value`, `text-value`, `bool-value`, `list-value`, `object-value`,
-        and `empty-value` from `/template-engine`. `template-value` has `kind`, `text`,
+        and `empty-value` from `/streaky/template`. `template-value` has `kind`, `text`,
         `boolean`, `items`, and `fields`; unused fields retain their defaults. Lists contain
         `template-value` items and objects map strings to `template-value`. Construct values
         with the factories rather than relying on implicit host-object conversion.
@@ -38,7 +38,7 @@ documentation:
       timeout-ms: null
       source: |-
         from /core/collections import list, map
-        from /template-engine import template-value, text-value, bool-value, list-value, object-value, empty-value
+        from /streaky/template import template-value, text-value, bool-value, list-value, object-value, empty-value
 
         fields map of string, template-value = map;
         fields.set; 'name', (text-value; 'Ada')
@@ -62,8 +62,8 @@ documentation:
         an error.
   sections: []
   see-also:
-    - template-engine.api.template-engine
-    - template-engine.guide.syntax-and-safety
+    - template.api.template-engine
+    - template.guide.syntax-and-safety
 
 provenance:
   specification: null

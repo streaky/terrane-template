@@ -1,4 +1,4 @@
-namespace template-engine
+namespace streaky/template
 
 from /core/collections import list
 from /core/filesystem import filesystem-capability, filesystem-write-atomic

@@ -9,4 +9,4 @@ template-demo = "src"
 capabilities = ["filesystem"]
 
 [terrane-dependencies]
-template-engine = { path = ".." }
+template = { path = ".." }
