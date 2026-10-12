@@ -1,6 +1,6 @@
 namespace streaky/template
 
-from /core/collections import map, range
+from /core/collections import list, map, range
 
 public function generate-template-function string; program parsed-template, function-name string
     validate-program; program
@@ -45,56 +45,56 @@ public function generate-template-unit string; output-namespace string, programs
         check-template-name; program.name
         seen = names.get.checked; program.name
         if seen != none
-            throw template-error; ('duplicate template name: '.concat; program.name)
+            throw template-error; ('duplicate template name: ' + program.name)
         names.set; program.name, true
         for token-index in (range; 0, program.tokens.length)
             token = program.tokens[token-index]
-            if token.kind == 'output'
-                imports.output = true
-                parts = expression-parts; token.text
-                imports.observe-atom; parts[0]
-            else if token.kind == 'if'
-                imports.observe-atom; (condition-expression; token.text)
-            else if token.kind == 'for'
-                imports.error = true
-                imports.observe-atom; token.text
-                if range-uses-context; program, token-index + 1, (loop-boundary; token)
-                    imports.loop-context = true
-            else if token.kind == 'widget'
-                words = template-words; token.text
-                if words.length == 2
-                    imports.observe-atom; words[1]
-                else
-                    imports.empty = true
-    source = 'namespace '.concat; output-namespace, '\nfrom /core/errors import throwable\nfrom /streaky/template import template-engine, template-value, check-template-depth'
+            switch token.kind
+                case 'output'
+                    imports.output = true
+                    parts = expression-parts; token.text
+                    imports.observe-atom; parts[0]
+                case 'if'
+                    imports.observe-atom; (condition-expression; token.text)
+                case 'for'
+                    imports.error = true
+                    imports.observe-atom; token.text
+                    if range-uses-context; program, (token-index + 1), (loop-boundary; token)
+                        imports.loop-context = true
+                case 'widget'
+                    words = template-words; token.text
+                    if words.length == 2
+                        imports.observe-atom; words[1]
+                    else
+                        imports.empty = true
+    source = 'namespace ' + output-namespace + '\nfrom /core/errors import throwable\nfrom /streaky/template import template-engine, template-value, check-template-depth'
     if imports.error
-        source = source.concat; ', template-error'
+        source = source + ', template-error'
     if imports.empty
-        source = source.concat; ', empty-value'
+        source = source + ', empty-value'
     if imports.boolean
-        source = source.concat; ', bool-value'
+        source = source + ', bool-value'
     if imports.loop-context
-        source = source.concat; ', template-loop-context'
+        source = source + ', template-loop-context'
     if imports.text
-        source = source.concat; ', text-value'
+        source = source + ', text-value'
     if imports.output
-        source = source.concat; ', format-template-value'
+        source = source + ', format-template-value'
     if imports.lookup
-        source = source.concat; ', template-lookup'
+        source = source + ', template-lookup'
     if imports.field
-        source = source.concat; ', template-field'
-    source = source.concat; '\n\n'
+        source = source + ', template-field'
+    source = source + '\n\n'
     for program-index in (range; 0, programs.length)
-        source = source.concat; (generate-template-function-valid; programs[program-index], ('render-template'.concat; program-index)), '\n\n'
-    source = source.concat; 'public function make-template-engine template-engine;\n    engine = instance template-engine;\n'
+        source = source + (generate-template-function-valid; programs[program-index], ('render-template' + program-index)) + '\n\n'
+    source = source + 'public function make-template-engine template-engine;\n    engine = instance template-engine;\n'
     loader = instance template-loader;
     for root in runtime-roots
         loader.add-path; root
-        source = source.concat; '    engine.add-path; ', (quoted-source; root), '\n'
+        source = source + '    engine.add-path; ' + (quoted-source; root) + '\n'
     for program-index in (range; 0, programs.length)
-        source = source.concat; '    engine.register-template; ', (quoted-source; programs[program-index].name), ', render-template', program-index, '\n'
-    return source.concat; '    return engine\n'
-
+        source = source + '    engine.register-template; ' + (quoted-source; programs[program-index].name) + ', render-template' + program-index + '\n'
+    return source + '    return engine\n'
 private function atom-uses-context bool; expression string
     expression = expression.trim;
     return not (quoted; expression) and expression != 'true' and expression != 'false' and expression != 'none'
@@ -117,119 +117,95 @@ private function range-uses-context bool; program parsed-template, start int, fi
                 return true
     return false
 
-private function generate-range string; program parsed-template, function-name string, context-name string, start int, finish int, indent-level int, top-level bool
-    source = ''
-    indent = '    '
-    indent-index int = 0
-    while indent-index < indent-level
-        indent = indent.concat; '    '
-        indent-index = indent-index + 1
-    if top-level
-        source = 'function '.concat; function-name, ' string throws throwable; engine ref template-engine, context map of string, template-value, depth int\n    output string = \'\'\n    check-template-depth; depth\n'
-        has-output bool = false
-        for token in program.tokens
-            if token.kind == 'output'
-                has-output = true
-        if has-output
-            source = source.concat; '    autoescape = engine.autoescape-for; ', (quoted-source; program.name), '\n'
-    cursor int = start
-    while cursor < finish
-        token = program.tokens[cursor]
-        if token.kind == 'text'
-            source = source.concat; indent, 'output = output.concat; ', (quoted-source; token.text), '\n'
-        else if token.kind == 'output'
-            parts = expression-parts; token.text
-            filter = ''
-            if parts.length == 2
-                filter = parts[1].trim;
-            source = source.concat; indent, 'output = output.concat; (format-template-value; ', (generated-value; parts[0], context-name), ', autoescape, ', (quoted-source; filter), ')\n'
-        else if token.kind == 'if'
-            negate = condition-negated; token.text
-            condition = condition-expression; token.text
-            source = source.concat; indent, 'condition', cursor, ' = ', (generated-value; condition, context-name), '\n'
-            if negate
-                source = source.concat; indent, 'if not (condition', cursor, '.truthy;)\n', indent, '    check-template-depth; depth + ', indent-level + 1, '\n'
-            else
-                source = source.concat; indent, 'if condition', cursor, '.truthy;\n', indent, '    check-template-depth; depth + ', indent-level + 1, '\n'
-            boundary = token.end
-            if token.alternate >= 0
-                boundary = token.alternate
-            source = source.concat; (generate-range; program, function-name, context-name, cursor + 1, boundary, indent-level + 1, false)
-            if token.alternate >= 0
-                source = source.concat; indent, 'else\n', indent, '    check-template-depth; depth + ', indent-level + 1, '\n'
-                source = source.concat; (generate-range; program, function-name, context-name, token.alternate + 1, token.end, indent-level + 1, false)
-            cursor = token.end
-        else if token.kind == 'for'
-            source = source.concat; indent, 'sequence', cursor, ' = ', (generated-value; token.text, context-name), '\n', indent, 'if sequence', cursor, '.kind != \'list\'\n', indent, '    throw template-error; \'for requires a list value\'\n', indent, 'loop-index', cursor, ' int = 0\n', indent, 'while loop-index', cursor, ' < sequence', cursor, '.items.length\n', indent, '    check-template-depth; depth + ', indent-level + 1, '\n'
-            context-used = range-uses-context; program, cursor + 1, (loop-boundary; token)
-            if context-used
-                source = source.concat; indent, '    loop-context', cursor, ' = template-loop-context; ', context-name, ', ', (quoted-source; token.name), ', sequence', cursor, '.items[loop-index', cursor, '], loop-index', cursor, ', sequence', cursor, '.items.length\n'
-                source = source.concat; (generate-range; program, function-name, ('loop-context'.concat; cursor), cursor + 1, (loop-boundary; token), indent-level + 1, false)
-            else
-                source = source.concat; (generate-range; program, function-name, context-name, cursor + 1, (loop-boundary; token), indent-level + 1, false)
-            source = source.concat; indent, '    loop-index', cursor, ' = loop-index', cursor, ' + 1\n'
-            if token.alternate >= 0
-                source = source.concat; indent, 'if sequence', cursor, '.items.length == 0\n', indent, '    check-template-depth; depth + ', indent-level + 1, '\n'
-                source = source.concat; (generate-range; program, function-name, context-name, token.alternate + 1, token.end, indent-level + 1, false)
-            cursor = token.end
-        else if token.kind == 'include'
-            source = source.concat; indent, 'output = output.concat; (engine.fetch-context; ', (quoted-source; (unquote; token.text)), ', ', context-name, ', depth + ', indent-level + 1, ', \'compiled\')\n'
-        else if token.kind == 'widget'
-            words = template-words; token.text
-            argument = '(empty-value;)'
-            if words.length == 2
-                argument = generated-value; words[1], context-name
-            source = source.concat; indent, 'output = output.concat; (engine.render-widget; ', (quoted-source; words[0]), ', ', argument, ')\n'
-        cursor = cursor + 1
-    if top-level
-        source = source.concat; '    return output\n'
-    return source
-
 private function loop-boundary int; token template-token
     if token.alternate >= 0
         return token.alternate
     return token.end
 
+private function generate-range string; program parsed-template, function-name string, context-name string, start int, finish int, indent-level int, top-level bool
+    source = ''
+    indent = '    '
+    indent-index int = 0
+    while indent-index < indent-level
+        indent = indent + '    '
+        indent-index = indent-index + 1
+    if top-level
+        source = 'function ' + function-name + ' string throws throwable; engine ref template-engine, context map of string, template-value, depth int\n    output string = \'\'\n    check-template-depth; depth\n'
+        has-output bool = false
+        for token in program.tokens
+            if token.kind == 'output'
+                has-output = true
+        if has-output
+            source = source + '    autoescape = engine.autoescape-for; ' + (quoted-source; program.name) + '\n'
+    cursor int = start
+    while cursor < finish
+        token = program.tokens[cursor]
+        switch token.kind
+            case 'text'
+                source = source + indent + 'output = output + ' + (quoted-source; token.text) + '\n'
+            case 'output'
+                parts = expression-parts; token.text
+                filter = ''
+                if parts.length == 2
+                    filter = parts[1].trim;
+                source = source + indent + 'output = output + (format-template-value; ' + (generated-value; parts[0], context-name) + ', autoescape, ' + (quoted-source; filter) + ')\n'
+            case 'if'
+                negate = condition-negated; token.text
+                condition = condition-expression; token.text
+                source = source + indent + 'condition' + cursor + ' = ' + (generated-value; condition, context-name) + '\n'
+                if negate
+                    source = source + indent + 'if not (condition' + cursor + '.truthy;)\n' + indent + '    check-template-depth; depth + ' + (indent-level + 1) + '\n'
+                else
+                    source = source + indent + 'if condition' + cursor + '.truthy;\n' + indent + '    check-template-depth; depth + ' + (indent-level + 1) + '\n'
+                boundary = token.end
+                if token.alternate >= 0
+                    boundary = token.alternate
+                source = source + (generate-range; program, function-name, context-name, (cursor + 1), boundary, (indent-level + 1), false)
+                if token.alternate >= 0
+                    source = source + indent + 'else\n' + indent + '    check-template-depth; depth + ' + (indent-level + 1) + '\n'
+                    source = source + (generate-range; program, function-name, context-name, (token.alternate + 1), token.end, (indent-level + 1), false)
+                cursor = token.end
+            case 'for'
+                source = source + indent + 'sequence' + cursor + ' = ' + (generated-value; token.text, context-name) + '\n' + indent + 'if sequence' + cursor + '.kind != \'list\'\n' + indent + '    throw template-error; \'for requires a list value\'\n' + indent + 'loop-index' + cursor + ' int = 0\n' + indent + 'while loop-index' + cursor + ' < sequence' + cursor + '.items.length\n' + indent + '    check-template-depth; depth + ' + (indent-level + 1) + '\n'
+                context-used = range-uses-context; program, (cursor + 1), (loop-boundary; token)
+                if context-used
+                    source = source + indent + '    loop-context' + cursor + ' = template-loop-context; ' + context-name + ', ' + (quoted-source; token.name) + ', sequence' + cursor + '.items[loop-index' + cursor + '], loop-index' + cursor + ', sequence' + cursor + '.items.length\n'
+                    source = source + (generate-range; program, function-name, ('loop-context' + cursor), (cursor + 1), (loop-boundary; token), (indent-level + 1), false)
+                else
+                    source = source + (generate-range; program, function-name, context-name, (cursor + 1), (loop-boundary; token), (indent-level + 1), false)
+                source = source + indent + '    loop-index' + cursor + ' = loop-index' + cursor + ' + 1\n'
+                if token.alternate >= 0
+                    source = source + indent + 'if sequence' + cursor + '.items.length == 0\n' + indent + '    check-template-depth; depth + ' + (indent-level + 1) + '\n'
+                    source = source + (generate-range; program, function-name, context-name, (token.alternate + 1), token.end, (indent-level + 1), false)
+                cursor = token.end
+            case 'include'
+                source = source + indent + 'output = output + (engine.fetch-context; ' + (quoted-source; (unquote; token.text)) + ', ' + context-name + ', depth + ' + (indent-level + 1) + ', \'compiled\')\n'
+            case 'widget'
+                words = template-words; token.text
+                argument = '(empty-value;)'
+                if words.length == 2
+                    argument = generated-value; words[1], context-name
+                source = source + indent + 'output = output + (engine.render-widget; ' + (quoted-source; words[0]) + ', ' + argument + ')\n'
+        cursor = cursor + 1
+    if top-level
+        source = source + '    return output\n'
+    return source
 private function generated-value string; expression string, context-name string
     expression = expression.trim;
     if expression == 'true' or expression == 'false'
-        return '(bool-value; '.concat; expression, ')'
+        return '(bool-value; ' + expression + ')'
     else if expression == 'none'
         return '(empty-value;)'
     else if (quoted; expression)
-        return '(text-value; '.concat; (quoted-source; (unquote; expression)), ')'
+        return '(text-value; ' + (quoted-source; (unquote; expression)) + ')'
     parts = expression.split; '.'
-    code = '(template-lookup; ref '.concat; context-name, ', ', (quoted-source; parts[0]), ', ', (quoted-source; expression), ')'
+    code = '(template-lookup; ref ' + context-name + ', ' + (quoted-source; parts[0]) + ', ' + (quoted-source; expression) + ')'
     part-index int = 1
     while part-index < parts.length
-        code = '(template-field; '.concat; code, ', ', (quoted-source; parts[part-index]), ', ', (quoted-source; expression), ')'
+        code = '(template-field; ' + code + ', ' + (quoted-source; parts[part-index]) + ', ' + (quoted-source; expression) + ')'
         part-index = part-index + 1
     return code
 
 private function quoted-source string; value string
-    data = value.encode; utf8
-    result = '\''
-    index int = 0
-    span-start int = 0
-    while index < data.length
-        byte = data[index]
-        if byte == 39 or byte == 92 or byte == 10 or byte == 13 or byte == 9
-            if span-start < index
-                result = result.concat; (data[(range; span-start, index)].decode; utf8)
-            if byte == 39
-                result = result.concat; '\\\''
-            else if byte == 92
-                result = result.concat; '\\\\'
-            else if byte == 10
-                result = result.concat; '\\n'
-            else if byte == 13
-                result = result.concat; '\\r'
-            else if byte == 9
-                result = result.concat; '\\t'
-            index = index + 1
-            span-start = index
-        else
-            index = index + 1
-    if span-start < data.length
-        result = result.concat; (data[(range; span-start, data.length)].decode; utf8)
-    return result.concat; '\''
+    escaped = value.replace; (list; '\\', '\'', '\n', '\r', '\t'), (list; '\\\\', '\\\'', '\\n', '\\r', '\\t')
+    return '\'' + escaped + '\''

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Give `template-value` a standard `to-string` representation shared by interpolation,
+  string concatenation, printing, `.concat`, and `.join`, preserving strict container
+  rejection and keeping raw conversion separate from escaping.
+- Use string `+` for renderer/source composition and ordered `switch` for value,
+  directive, validation, and token dispatch without changing template syntax.
+- Use multi-search replacement for one-pass HTML escaping, source-literal quoting,
+  and directive whitespace normalization; never rescan inserted escape sequences.
+
 - Add a pure Terrane template package with public namespace `streaky/template`,
   strict lookup, conditionals, loops, includes, widgets, and trusted filesystem roots.
 - Generate native Terrane render functions at build time from explicit entries and

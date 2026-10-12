@@ -98,3 +98,8 @@ function test-selected-policy-propagates-through-conditions-and-loops;
     engine.assign; 'items', (list-value; values)
     assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.html')), '&lt;x&gt;'
     assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.txt')), '<x>'
+
+function test-html-escaping-does-not-rescan-inserted-entities;
+    assert-equal-string; (escape-html; '&<>"\''), '&amp;&lt;&gt;&quot;&#39;'
+    assert-equal-string; (escape-html; '&amp;&lt;'), '&amp;amp;&amp;lt;'
+    assert-equal-string; (escape-html; 'é é &<&'), 'é é &amp;&lt;&amp;'

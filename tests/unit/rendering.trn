@@ -217,3 +217,31 @@ function test-loader-rejects-invalid-utf8-and-oversize;
     catch template-error
         oversized = true
     assert-equal-bool; oversized, true
+
+function test-template-values-share-raw-display-and-rendering-escapes;
+    engine = instance template-engine;
+    value = text-value; '<&>'
+    assert-equal-string; (value.to-string;), '<&>'
+    assert-equal-string; 'value=' + value, 'value=<&>'
+    assert-equal-string; ('value='.concat; value), 'value=<&>'
+    assert-equal-string; ('|'.join; value, (bool-value; false), (empty-value;)), '<&>|false|'
+    engine.assign; 'value', value
+    assert-equal-string; (engine.render; '{{ value }}|{{ value | safe }}'), '&lt;&amp;&gt;|<&>'
+    assert-equal-string; ((bool-value; true).to-string;), 'true'
+    assert-equal-string; ((empty-value;).to-string;), ''
+
+function test-template-value-display-rejects-containers-and-unknown-kinds;
+    items list of template-value = list;
+    fields map of string, template-value = map;
+    unknown = instance template-value;
+    unknown.kind = 'invalid'
+    for value in (list; (list-value; items), (object-value; fields), unknown)
+        expected = 'lists and objects cannot be interpolated directly'
+        if value.kind == 'invalid'
+            expected = 'unknown template value kind: invalid'
+        message = ''
+        try
+            assert-equal-string; 'value=' + value, 'unreachable'
+        catch template-error as error
+            message = error.message
+        assert-equal-string; message, expected

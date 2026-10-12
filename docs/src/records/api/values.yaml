@@ -63,6 +63,24 @@ documentation:
         Supported `kind` tags are `none`, `bool`, `text`, `list`, and `object`.
         Unknown tags raise `template-error` during truthiness and interpolation rather
         than becoming false or being mistaken for containers.
+    - type: markdown
+      markdown: |-
+        `template-value.to-string;` supplies the same raw representation used by
+        interpolation: text is unchanged, booleans render as `true` or `false`, and
+        the empty template value renders as `''` (unlike scalar `none`, which renders
+        as `none`). Lists, objects, and unknown tags raise `template-error`.
+        String `+`, `.concat;`, `.join;`, and `print;` use this representation too.
+        Conversion does not escape HTML; interpolation applies the engine's policy
+        and filters after conversion. Widgets must still escape untrusted text for
+        their output context.
+    - type: example
+      language: terrane
+      mode: illustrative
+      source: |-
+        value = text-value; '<Ada>'
+        raw = value.to-string;
+        label = 'Hello, ' + value
+        print; label
   sections: []
   see-also:
     - template.api.template-engine

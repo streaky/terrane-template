@@ -1,14 +1,10 @@
 namespace streaky/template
 
-from /core/collections import map, range
+from /core/collections import list, map
 from /core/errors import throwable
 
 public function escape-html string; text string
-    escaped = text.replace; '&', '&amp;'
-    escaped = escaped.replace; '<', '&lt;'
-    escaped = escaped.replace; '>', '&gt;'
-    escaped = escaped.replace; '"', '&quot;'
-    return escaped.replace; '\'', '&#39;'
+    return text.replace; (list; '&', '<', '>', '"', '\''), (list; '&amp;', '&lt;', '&gt;', '&quot;', '&#39;')
 
 private function resolve-value template-value; expression string, context ref (map of string, template-value)
     expression = expression.trim;
@@ -26,16 +22,6 @@ private function resolve-value template-value; expression string, context ref (m
         index = index + 1
     return current
 
-private function value-text string; value template-value
-    if value.kind == 'text'
-        return value.text
-    if value.kind == 'bool'
-        return ''.concat; value.boolean
-    if value.kind == 'none'
-        return ''
-    if value.kind == 'list' or value.kind == 'object'
-        throw template-error; 'lists and objects cannot be interpolated directly'
-    throw template-error; ('unknown template value kind: '.concat; value.kind)
 
 public class template-engine
     private values map of string, template-value
@@ -91,7 +77,7 @@ public class template-engine
         if previous != none
             if previous.kind != 'text'
                 throw template-error; 'append requires a text value'
-            this.assign; name, (text-value; (previous.text.concat; text))
+            this.assign; name, (text-value; previous.text + text)
         else
             this.assign; name, (text-value; text)
 
@@ -128,14 +114,14 @@ public class template-engine
         if available != none
             renderer = this.templates[name]
             return renderer; ref this, context, depth
-        throw template-error; ('template not available at build time: '.concat; name, '; use dynamic mode for runtime files')
+        throw template-error; 'template not available at build time: ' + name + '; use dynamic mode for runtime files'
 
     function render-widget string; name string, argument template-value
         available = this.widgets.get.checked; name
         if available != none
             handler = this.widgets[name]
             return handler; argument
-        throw template-error; ('unregistered widget: '.concat; name)
+        throw template-error; 'unregistered widget: ' + name
 
     function display; name string, mode string = 'default'
         print; (this.fetch; name, mode)
@@ -146,51 +132,52 @@ public class template-engine
         cursor int = start
         while cursor < finish
             token = program.tokens[cursor]
-            if token.kind == 'text'
-                output = output.concat; token.text
-            else if token.kind == 'output'
-                parts = expression-parts; token.text
-                filter string = ''
-                if parts.length == 2
-                    filter = parts[1].trim;
-                output = output.concat; (format-template-value; (resolve-value; parts[0], ref context), autoescape, filter)
-            else if token.kind == 'if'
-                negate = condition-negated; token.text
-                test = resolve-value; (condition-expression; token.text), ref context
-                selected bool = test.truthy;
-                if negate
-                    selected = not selected
-                boundary int = token.end
-                if token.alternate >= 0
-                    boundary = token.alternate
-                if selected
-                    output = output.concat; (this.render-range; program, context, cursor + 1, boundary, depth + 1, autoescape, mode)
-                else if token.alternate >= 0
-                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
-                cursor = token.end
-            else if token.kind == 'for'
-                sequence = resolve-value; token.text, ref context
-                if sequence.kind != 'list'
-                    throw template-error; 'for requires a list value'
-                boundary int = token.end
-                if token.alternate >= 0
-                    boundary = token.alternate
-                index int = 0
-                while index < sequence.items.length
-                    local-context = template-loop-context; context, token.name, sequence.items[index], index, sequence.items.length
-                    output = output.concat; (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape, mode)
-                    index = index + 1
-                if sequence.items.length == 0 and token.alternate >= 0
-                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
-                cursor = token.end
-            else if token.kind == 'include'
-                included-name = unquote; token.text
-                output = output.concat; (this.fetch-context; included-name, context, depth + 1, mode)
-            else if token.kind == 'widget'
-                words = template-words; token.text
-                argument = empty-value;
-                if words.length == 2
-                    argument = resolve-value; words[1], ref context
-                output = output.concat; (this.render-widget; words[0], argument)
+            switch token.kind
+                case 'text'
+                    output = output + token.text
+                case 'output'
+                    parts = expression-parts; token.text
+                    filter string = ''
+                    if parts.length == 2
+                        filter = parts[1].trim;
+                    output = output + (format-template-value; (resolve-value; parts[0], ref context), autoescape, filter)
+                case 'if'
+                    negate = condition-negated; token.text
+                    test = resolve-value; (condition-expression; token.text), ref context
+                    selected bool = test.truthy;
+                    if negate
+                        selected = not selected
+                    boundary int = token.end
+                    if token.alternate >= 0
+                        boundary = token.alternate
+                    if selected
+                        output = output + (this.render-range; program, context, cursor + 1, boundary, depth + 1, autoescape, mode)
+                    else if token.alternate >= 0
+                        output = output + (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
+                    cursor = token.end
+                case 'for'
+                    sequence = resolve-value; token.text, ref context
+                    if sequence.kind != 'list'
+                        throw template-error; 'for requires a list value'
+                    boundary int = token.end
+                    if token.alternate >= 0
+                        boundary = token.alternate
+                    index int = 0
+                    while index < sequence.items.length
+                        local-context = template-loop-context; context, token.name, sequence.items[index], index, sequence.items.length
+                        output = output + (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape, mode)
+                        index = index + 1
+                    if sequence.items.length == 0 and token.alternate >= 0
+                        output = output + (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
+                    cursor = token.end
+                case 'include'
+                    included-name = unquote; token.text
+                    output = output + (this.fetch-context; included-name, context, depth + 1, mode)
+                case 'widget'
+                    words = template-words; token.text
+                    argument = empty-value;
+                    if words.length == 2
+                        argument = resolve-value; words[1], ref context
+                    output = output + (this.render-widget; words[0], argument)
             cursor = cursor + 1
         return output

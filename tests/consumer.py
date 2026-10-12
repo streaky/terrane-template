@@ -68,7 +68,8 @@ class ConsumerTests(unittest.TestCase):
             app = Path(directory)
             (app / 'src').mkdir()
             (app / 'templates').mkdir()
-            (app / 'templates/literal.txt').write_text('template-lookup|bool-value|empty-value')
+            literal = "template-lookup|bool-value|empty-value|é é|'\\\n\r\tend"
+            (app / 'templates/literal.txt').write_text(literal)
             (app / 'templates/condition.txt').write_text('{% if "a|b" %}q{% endif %}{% if true %}t{% endif %}{% if none %}bad{% endif %}')
             manifest = f'''package = "consumer-regression"
 artifact = "executable"
@@ -98,9 +99,9 @@ function main;
             self.assertEqual(built.returncode, 0, built.stderr)
             self.assertNotIn('warning', built.stderr.lower())
             with tempfile.TemporaryDirectory() as cwd:
-                result = subprocess.run([built.stdout.strip()], cwd=cwd, text=True,
+                result = subprocess.run([built.stdout.strip()], cwd=cwd,
                                         capture_output=True, timeout=20, check=True)
-            self.assertEqual(result.stdout, 'template-lookup|bool-value|empty-value\nqt\n')
+            self.assertEqual(result.stdout, (literal + '\nqt\n').encode())
 
 
 if __name__ == '__main__':
