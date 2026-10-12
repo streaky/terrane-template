@@ -1,0 +1,65 @@
+namespace streaky/template
+
+from /core/collections import list
+from /core/encodings import utf8
+from /core/errors import decode-error
+from /core/filesystem import filesystem-capability, filesystem-exists, filesystem-read-bounded
+from /core/filesystem/paths import join-path, path
+
+private function contains-template-nul bool; text string
+    data = text.encode; utf8
+    index int = 0
+    while index < data.length
+        if data[index] == 0
+            return true
+        index = index + 1
+    return false
+
+public function check-template-name; name string
+    if name == '' or (contains-template-nul; name) or (name.contains; '\\') or (name.contains; ':') or (name.contains.start; '/')
+        throw template-error; ('invalid template name: '.concat; name)
+    for part in (name.split; '/')
+        if part == '' or part == '.' or part == '..'
+            throw template-error; ('invalid template name: '.concat; name)
+
+public class template-loader
+    private paths list of string
+
+    public mutable function add-path; directory string, push bool = true
+        if directory == '' or (contains-template-nul; directory) or (directory.contains; '\\')
+            throw template-error; 'template search path must be a non-empty directory path'
+        if push
+            this.paths.append; directory
+        else
+            updated list of string = list;
+            updated.append; directory
+            path-index int = 0
+            while path-index < this.paths.length
+                updated.append; this.paths[path-index]
+                path-index = path-index + 1
+            this.paths = updated
+
+    public function load string; name string
+        check-template-name; name
+
+        authority = filesystem-capability;
+        search-index int = this.paths.length - 1
+        while search-index >= 0
+            base = instance path; this.paths[search-index]
+            relative = instance path; name
+            target = join-path; base, relative
+            existing = filesystem-exists; authority, target
+            if existing.failed
+                throw template-error; existing.message
+            if existing.exists
+                loaded = filesystem-read-bounded; authority, target, 1048577
+                if loaded.failed
+                    throw template-error; loaded.message
+                if loaded.completed >= 1048577
+                    throw template-error; ('template exceeds 1048576-byte limit: '.concat; name)
+                try
+                    return loaded.data.decode; utf8
+                catch decode-error
+                    throw template-error; ('template is not valid UTF-8: '.concat; name)
+            search-index = search-index - 1
+        throw template-error; ('template not found: '.concat; name)

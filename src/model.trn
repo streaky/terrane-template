@@ -1,0 +1,89 @@
+namespace streaky/template
+from /core/collections import list, map
+from /core/errors import throwable
+
+public class template-error implements throwable
+    message string = ''
+
+    function construct; message string, name string = '', offset int = -1
+        if name != '' or offset >= 0
+            template-label = name
+            if template-label == ''
+                template-label = '<string>'
+            if offset >= 0
+                message = ('template '.concat; template-label, ' at byte ', offset, ': ', message)
+            else
+                message = ('template '.concat; template-label, ': ', message)
+        this.message = message
+
+    function render string;
+        return this.message
+
+
+public class template-value
+    kind string = 'none'
+    text string = ''
+    boolean bool = false
+    items list of template-value
+    fields map of string, template-value
+
+    function truthy bool;
+        if this.kind == 'none'
+            return false
+        if this.kind == 'bool'
+            return this.boolean
+        if this.kind == 'text'
+            return this.text != ''
+        if this.kind == 'list'
+            return this.items.length > 0
+        if this.kind == 'object'
+            return this.fields.length > 0
+        throw template-error; ('unknown template value kind: '.concat; this.kind)
+
+public function text-value template-value; value string
+    result = instance template-value;
+    result.kind = 'text'
+    result.text = value
+    return result
+
+public function bool-value template-value; value bool
+    result = instance template-value;
+    result.kind = 'bool'
+    result.boolean = value
+    return result
+
+public function list-value template-value; value list of template-value
+    result = instance template-value;
+    result.kind = 'list'
+    result.items = value
+    return result
+
+public function object-value template-value; value map of string, template-value
+    result = instance template-value;
+    result.kind = 'object'
+    result.fields = value
+    return result
+
+public function empty-value template-value;
+    return instance template-value;
+
+public class template-token
+    kind string = 'text'
+    text string = ''
+    name string = ''
+    end int = -1
+    alternate int = -1
+    offset int = 0
+
+    function construct; kind string, text string, offset int
+        this.kind = kind
+        this.text = text
+        this.offset = offset
+
+public class parsed-template
+    tokens list of template-token
+    name string = ''
+
+    function construct; tokens list of template-token, name string = ''
+        this.tokens = tokens
+        this.name = name

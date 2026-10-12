@@ -1,0 +1,162 @@
+format: 1
+id: template.api.errors-and-compilation
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Compilation and errors"
+  title-style: text
+  summary: >-
+    Generate ahead-of-time Terrane render functions or explicitly parse runtime templates.
+  tags:
+    - "api"
+    - "errors"
+    - "compilation"
+  blocks:
+    - type: markdown
+      markdown: |-
+        `parse-template(source, name='')` returns a `parsed-template`; its public `tokens`
+        field contains the interpreted token representation and `name` retains the optional
+        template filename. The empty name denotes an unnamed/string template. Supply a
+        filename when parsing file-derived source manually so the engine can select the
+        right escaping policy. `fetch` and includes retain filenames automatically.
+        `render-parsed(program)` renders against the engine's current values and escaping
+        configuration. Reuse this value to avoid repeated runtime parsing; it is not
+        ahead-of-time generated code. `render(source)` always parses dynamically. Neither
+        dynamic fetches nor parsed templates provide an automatic file cache. Parsing does
+        not resolve context paths, so undefined values and runtime type mismatches can still
+        fail while rendering.
+        Public rendering/generation of parsed programs validates all token syntax and
+        structural edges, including inactive branches, before execution or generation.
+        Parser-produced programs are trusted internally; evaluation does not repeat grammar
+        validation for every loop iteration.
+    - type: example
+      id: parse-and-render
+      title: "Parse source for repeated interpreted rendering"
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /streaky/template import parse-template, template-engine, text-value
+
+        engine = instance template-engine;
+        engine.assign; 'name', (text-value; 'Ada')
+        program = parse-template; '<p>{{ name }}</p>'
+        first = engine.render-parsed; program
+        second = engine.render-parsed; program
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        Ahead-of-time rendering uses Terrane's existing explicit consumer hook. A consuming
+        package selects the native template consumer with `[consumers.template]`, string
+        `args`, and a nonempty canonical `declarations` list. The application's `main`
+        is a convenient selection anchor; it does not need template annotations. Pass
+        `--namespace`, repeat `--root` for build search roots, and repeat `--template` for entry
+        files. Build roots resolve relative to the consuming package and later roots win.
+        Build roots are not embedded in the generated factory. Repeat `--runtime-root` to
+        configure separate runtime search directories; relative runtime roots resolve from
+        the process working directory. With none supplied, the factory configures no runtime
+        roots. A deployed application may instead call `add-path` with its own directories.
+        Only configured entries and recursively discovered literal includes enter the
+        inventory; unrelated files are not scanned or embedded. Invalid syntax, invalid
+        names, and unavailable includes diagnose at build time. Cycles are discovered once
+        and rendering applies the same 64-level control/include depth guard in both modes.
+
+        Run `sh packages/template/build-consumer.sh` before building the application. It
+        installs the native consumer executable under the package's ignored build directory.
+        The configured generated namespace exports `make-template-engine`, which registers
+        ordinary Terrane render functions and only explicitly supplied runtime roots.
+        Those functions contain literal output, direct field accesses, and native control
+        flow, not an embedded token interpreter. Rebuild the application after template edits;
+        rebuild the consumer executable only when its own source changes.
+
+        Every engine defaults to compiled fetching. `set-mode('compiled'|'dynamic')` sets
+        its default; `fetch` and `display` accept per-call `default`, `compiled`, or `dynamic`.
+        A default call inherits the engine setting; overrides are not sticky and apply
+        through includes. Dynamic files are reread and parsed at runtime. Runtime-only
+        templates require dynamic mode; compiled lookup errors rather than falling back.
+        `render(source)` and `render-parsed(program)` remain explicitly interpreted paths.
+        Includes from either interpreted source API follow the engine's current mode.
+    - type: example
+      id: template-consumer-manifest
+      title: Configure an application beside the template package
+      language: toml
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        [consumers.template]
+        command = "../template/.trn/consumers/template"
+        args = ["--namespace", "generated/template/my-app", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
+        declarations = ["/my-app::main"]
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: example
+      id: compiled-and-dynamic-fetch
+      title: Use generated renderers and runtime previews
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /generated/template/my-app import make-template-engine
+        from /streaky/template import text-value
+
+        engine = make-template-engine;
+        engine.assign; 'title', (text-value; 'A page')
+        built = engine.fetch; 'page.html'
+        preview = engine.fetch; 'page.html', 'dynamic'
+        engine.set-mode; 'dynamic'
+        built-again = engine.fetch; 'page.html', 'compiled'
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        `template-error` is the package throwable for template failures. It has a `message`
+        string and renders as that message. It is raised for malformed/unclosed directives,
+        invalid expressions or filters, mismatched control blocks, undefined variables or
+        object fields, invalid runtime value kinds, invalid file names, missing or unreadable
+        templates, invalid UTF-8, files over 1 MiB, unavailable compiled inventory entries,
+        invalid render modes, and unregistered widgets. Parser and structural errors name the
+        template (or `<string>`) and zero-based UTF-8 byte offset. Missing/malformed build
+        includes also name the first including template and its include byte offset.
+        Build-time failures are reported as consumer diagnostics. Neither path silently
+        turns failures into empty output.
+    - type: markdown
+      markdown: |-
+        Generator-support APIs are public so generated namespaces and the native consumer can
+        call them: `generate-template-function(program, function-name)` emits one renderer;
+        `generate-template-unit(namespace, programs, runtime-roots)` emits a complete unit and
+        factory with required imports. Single-renderer output declares `throws throwable`;
+        callers assembling a unit themselves must import `throwable` from `/core/errors`
+        and its referenced support symbols. Prefer complete-unit generation for this reason.
+        Complete-unit generation requires distinct program names; duplicate names raise
+        `template-error` instead of silently replacing an earlier registration.
+        Both validate parsed inputs. `template-identifier-valid(value)` shares the
+        identifier grammar, and `template-include-name(token)` validates an include token
+        and returns its literal filename. Parser, evaluator, and generator implementation
+        helpers are private to the package namespace.
+  sections: []
+  see-also:
+    - template.api.template-engine
+    - template.guide.syntax-and-safety
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

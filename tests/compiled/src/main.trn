@@ -1,0 +1,9 @@
+namespace template-compiled-tests
+
+from /streaky/template import text-value
+from /generated/template/compiled-tests import make-template-engine
+function main;
+    engine = make-template-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    output = engine.fetch; 'basic.html'
+    print; output

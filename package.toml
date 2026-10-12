@@ -1,0 +1,12 @@
+package = "streaky/template"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+"streaky/template" = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[testing]
+unit = "tests/unit"

@@ -1,0 +1,1 @@
+{% if show %}{% for person in people %}{{ loop.first }}:{{ loop.last }}:{% if not loop.first %}N{% else %}F{% endif %}:{{ loop.index }}={{ person.name }}[{% include "person.txt" %}];{% else %}empty{% endfor %}{% else %}hidden{% endif %}

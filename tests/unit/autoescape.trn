@@ -1,0 +1,100 @@
+namespace streaky/template
+
+from /core/collections import list
+from /core/filesystem import filesystem-capability, filesystem-write-atomic
+from /core/filesystem/paths import path
+from /core/testing import assert-equal-bool, assert-equal-string
+
+function write-policy-template; name string, source string
+    saved = filesystem-write-atomic; (filesystem-capability;), (instance path; name), (source.encode; utf8)
+    assert-equal-bool; saved.failed, false
+
+function test-autoescape-selects-html-htm-xml-case-insensitively;
+    engine = instance template-engine;
+    engine.add-path; '.'
+    engine.assign; 'value', (text-value; '<&>')
+    for name in (list; 'page.html', 'page.htm', 'page.xml', 'page.HTML', 'page.HtM', 'page.XML')
+        write-policy-template; name, '{{ value }}'
+        assert-equal-string; (engine.fetch; name, 'dynamic'), '&lt;&amp;&gt;'
+
+function test-other-file-types-are-raw-and-escape-filter-still-works;
+    engine = instance template-engine;
+    engine.add-path; '.'
+    engine.assign; 'value', (text-value; '<&>')
+    for name in (list; 'page.txt', 'page.conf', 'page', 'page.html.txt')
+        write-policy-template; name, '{{ value }}|{{ value | escape }}|{{ value | safe }}'
+        assert-equal-string; (engine.fetch; name, 'dynamic'), '<&>|&lt;&amp;&gt;|<&>'
+
+function test-string-autoescape-default-is-separately-configurable;
+    escaped = instance template-engine;
+    escaped.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (escaped.render; '{{ value }}'), '&lt;x&gt;'
+    raw = instance template-engine;
+    raw.set-string-autoescape; false
+    raw.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (raw.render; '{{ value }}|{{ value | escape }}'), '<x>|&lt;x&gt;'
+    write-policy-template; 'page.html', '{{ value }}'
+    raw.add-path; '.'
+    assert-equal-string; (raw.fetch; 'page.html', 'dynamic'), '&lt;x&gt;'
+
+function test-explicit-autoescape-overrides-file-and-string-selection;
+    write-policy-template; 'page.html', '{{ value }}|{{ value | escape }}|{{ value | safe }}'
+    write-policy-template; 'page.txt', '{{ value }}|{{ value | escape }}|{{ value | safe }}'
+    escaped = instance template-engine;
+    escaped.set-string-autoescape; false
+    escaped.set-autoescape; true
+    raw = instance template-engine;
+    raw.set-autoescape; false
+    escaped.add-path; '.'
+    raw.add-path; '.'
+    escaped.assign; 'value', (text-value; '<x>')
+    raw.assign; 'value', (text-value; '<x>')
+    for name in (list; 'page.html', 'page.txt')
+        assert-equal-string; (escaped.fetch; name, 'dynamic'), '&lt;x&gt;|&lt;x&gt;|<x>'
+        assert-equal-string; (raw.fetch; name, 'dynamic'), '<x>|&lt;x&gt;|<x>'
+    assert-equal-string; (escaped.render; '{{ value }}'), '&lt;x&gt;'
+    assert-equal-string; (raw.render; '{{ value }}'), '<x>'
+    raw.select-autoescape;
+    assert-equal-string; (raw.fetch; 'page.html', 'dynamic'), '&lt;x&gt;|&lt;x&gt;|<x>'
+    assert-equal-string; (raw.fetch; 'page.txt', 'dynamic'), '<x>|&lt;x&gt;|<x>'
+
+function test-parsed-templates-retain-name-but-not-engine-policy;
+    html = parse-template; '{{ value }}', 'page.HTML'
+    text = parse-template; '{{ value }}', 'page.txt'
+    unnamed = parse-template; '{{ value }}'
+    selected = instance template-engine;
+    raw = instance template-engine;
+    raw.set-autoescape; false
+    selected.assign; 'value', (text-value; '<x>')
+    raw.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (selected.render-parsed; html), '&lt;x&gt;'
+    assert-equal-string; (selected.render-parsed; text), '<x>'
+    assert-equal-string; (selected.render-parsed; unnamed), '&lt;x&gt;'
+    assert-equal-string; (raw.render-parsed; html), '<x>'
+    selected.assign; 'value', (text-value; '<y>')
+    assert-equal-string; (selected.render-parsed; html), '&lt;y&gt;'
+
+function test-includes-use-own-filename-and-restore-parent-policy;
+    write-policy-template; 'child.txt', 'T{{ value }}'
+    write-policy-template; 'child.html', 'H{{ value }}'
+    write-policy-template; 'parent.html', '{{ value }}:{% include "child.txt" %}:{{ value }}'
+    write-policy-template; 'parent.txt', '{{ value }}:{% include "child.html" %}:{{ value }}'
+    engine = instance template-engine;
+    engine.add-path; '.'
+    engine.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (engine.fetch; 'parent.html', 'dynamic'), '&lt;x&gt;:T<x>:&lt;x&gt;'
+    assert-equal-string; (engine.fetch; 'parent.txt', 'dynamic'), '<x>:H&lt;x&gt;:<x>'
+    raw = instance template-engine;
+    raw.set-autoescape; false
+    raw.add-path; '.'
+    raw.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (raw.fetch; 'parent.txt', 'dynamic'), '<x>:H<x>:<x>'
+
+function test-selected-policy-propagates-through-conditions-and-loops;
+    source string = '{% if true %}{% for item in items %}{{ item }}{% else %}empty{% endfor %}{% endif %}'
+    values list of template-value = list;
+    values.append; (text-value; '<x>')
+    engine = instance template-engine;
+    engine.assign; 'items', (list-value; values)
+    assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.html')), '&lt;x&gt;'
+    assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.txt')), '<x>'

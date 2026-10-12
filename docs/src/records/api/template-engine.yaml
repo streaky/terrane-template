@@ -1,0 +1,139 @@
+format: 1
+id: template.api.template-engine
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "template-engine"
+  title-style: code
+  summary: >-
+    Assign context values, register widgets, choose template roots, and render source or files.
+  tags:
+    - "api"
+    - "rendering"
+  blocks:
+    - type: markdown
+      markdown: |-
+        Create an engine with `instance template-engine;` after importing the class from
+        `/streaky/template`. `assign(name, value)` stores a template value under a simple name;
+        `assign-complex(name, fields)` wraps a string-to-value map as an object.
+        `assigned(name)` reports whether a value is set. `append(name, text)` appends to an
+        existing text value or creates one, and raises `template-error` if the existing value
+        is not text.
+    - type: example
+      id: engine-operations
+      title: "Rendering and registering a widget"
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /streaky/template import template-engine, template-value, text-value, escape-html
+
+        function badge string; value template-value
+            return '<strong>'.concat; (escape-html; value.text), '</strong>'
+
+        engine = instance template-engine;
+        engine.assign; 'title', (text-value; 'A page')
+        engine.add-path; 'templates'
+        engine.register-widget; 'badge', badge
+        html = engine.fetch; 'page.html', 'dynamic'
+        rendered = engine.render; '<p>{{ title }}</p>'
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        Widget handlers have type `function from template-value to string throws throwable`.
+        `register-widget` associates a simple name with a handler. A `{% widget name %}` call
+        passes the empty value; `{% widget name path %}` resolves and passes the named value.
+        Returned strings are inserted as trusted HTML without automatic escaping. Handlers
+        may declare a compatible `throws` bound; errors propagate in both rendering modes.
+
+        `add-path(directory, push=true)` registers a non-empty search directory. With the
+        default `push=true`, it appends to the search list; lookup searches from newest to
+        oldest. `push=false` prepends a lower-priority directory. `render(source)` always
+        parses and renders the source dynamically. Every engine defaults to compiled
+        fetching; use the generated `make-template-engine` factory to populate its inventory.
+        A directly constructed engine has no compiled renderers until they are registered.
+        `fetch(name, mode='default')` renders a named template; `display` uses the same
+        options and prints with an extra newline. `set-mode('compiled'|'dynamic')` changes
+        the default. Both fetching APIs accept per-call `default`, `compiled`, or `dynamic`;
+        `default` inherits the engine mode. Overrides are not sticky, and includes follow
+        the selected mode. Runtime-only templates require dynamic mode; compiled lookup
+        never falls back to disk. Runtime search-path changes affect only dynamic loading.
+        Includes in `render` and `render-parsed` follow the engine's current mode too.
+        Relative runtime roots resolve from the process working directory, not the build
+        package directory.
+        Mutable engine methods are marked
+        `mutable` in Terrane; call headers and invocation syntax require semicolons.
+    - type: markdown
+      markdown: |-
+        A new engine selects autoescaping from the template name: `.html`, `.htm`, and `.xml`
+        enable it case-insensitively; other file names disable it. Unnamed templates from
+        `render` or `parse-template` enable it by default. `set-autoescape(enabled)` forces
+        one boolean policy for files, strings, and includes. `select-autoescape()` removes
+        that override and restores filename selection. `set-string-autoescape(enabled)`
+        changes the unnamed-template default; it affects neither named files nor an active
+        forced policy. All three configuration methods are mutable. Parsed templates retain
+        their name, not a frozen escaping mode, so rendering uses the engine's current
+        configuration. AOT rendering also uses the engine's current escaping settings and
+        each template's own filename policy; explicit `escape` and `safe` filters override
+        the automatic policy.
+    - type: example
+      id: escaping-policy
+      title: Configure escaping
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /streaky/template import template-engine
+
+        engine = instance template-engine;
+        engine.set-string-autoescape; false
+        engine.set-autoescape; true
+        engine.select-autoescape;
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        `escape-html(text)` returns text with the five HTML-sensitive characters escaped.
+        The standalone `template-loader` exposes the same `add-path` search policy and
+        `load(name)` for callers that need raw UTF-8 template source rather than rendering.
+        Assignment names, widget names, and path segments in expressions use ASCII letters,
+        digits, underscores, and hyphens. Numeric values can be supplied as text, for example
+        with Terrane's canonical text conversion through `''.concat; count`.
+    - type: markdown
+      markdown: |-
+        Generator-support engine methods remain public: `register-template(name, renderer)`
+        stores a callable of type `function from (ref template-engine),
+        (map of string, template-value), int to string throws throwable`;
+        `fetch-context(name, context, depth, mode='default')` renders with explicit context
+        and depth; `render-widget(name, argument)` invokes a handler; and
+        `autoescape-for(name)` selects current escaping. Generated code also uses
+        `check-template-depth(depth)`, `template-lookup(context, name, expression='')`,
+        `template-field(value, name, expression)`, `template-loop-context(context, name,
+        value, index, count)`, and `format-template-value(value, autoescape, filter='')`.
+        These are low-level support operations, not alternative expression parsers.
+  sections: []
+  see-also:
+    - template.api.values
+    - template.api.errors-and-compilation
+    - template.guide.syntax-and-safety
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

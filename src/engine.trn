@@ -1,0 +1,196 @@
+namespace streaky/template
+
+from /core/collections import map, range
+from /core/errors import throwable
+
+public function escape-html string; text string
+    escaped = text.replace; '&', '&amp;'
+    escaped = escaped.replace; '<', '&lt;'
+    escaped = escaped.replace; '>', '&gt;'
+    escaped = escaped.replace; '"', '&quot;'
+    return escaped.replace; '\'', '&#39;'
+
+private function resolve-value template-value; expression string, context ref (map of string, template-value)
+    expression = expression.trim;
+    if quoted; expression
+        return text-value; (unquote; expression)
+    if expression == 'true' or expression == 'false'
+        return bool-value; expression == 'true'
+    if expression == 'none'
+        return empty-value;
+    parts = expression.split; '.'
+    current = template-lookup; context, parts[0], expression
+    index int = 1
+    while index < parts.length
+        current = template-field; current, parts[index], expression
+        index = index + 1
+    return current
+
+private function value-text string; value template-value
+    if value.kind == 'text'
+        return value.text
+    if value.kind == 'bool'
+        return ''.concat; value.boolean
+    if value.kind == 'none'
+        return ''
+    if value.kind == 'list' or value.kind == 'object'
+        throw template-error; 'lists and objects cannot be interpolated directly'
+    throw template-error; ('unknown template value kind: '.concat; value.kind)
+
+public class template-engine
+    private values map of string, template-value
+    private widgets map of string, function from template-value to string throws throwable
+    private loader template-loader = instance template-loader;
+    private autoescape bool|none = none
+    private default-for-string bool = true
+    private mode string = 'compiled'
+    private templates map of string, function from (ref template-engine), (map of string, template-value), int to string throws throwable
+
+    mutable function set-mode; mode string
+        if mode != 'compiled' and mode != 'dynamic'
+            throw template-error; 'template mode must be compiled or dynamic'
+        this.mode = mode
+
+    mutable function register-template; name string, renderer function from (ref template-engine), (map of string, template-value), int to string throws throwable
+        check-template-name; name
+        this.templates.set; name, renderer
+
+
+    mutable function set-autoescape; enabled bool
+        this.autoescape = enabled
+
+    mutable function select-autoescape;
+        this.autoescape = none
+
+    mutable function set-string-autoescape; enabled bool
+        this.default-for-string = enabled
+
+    function autoescape-for bool; name string
+        override = this.autoescape
+        if override != none
+            return override
+        if name != ''
+            lower-name = name.lower;
+            return (lower-name.contains.end; '.html') or (lower-name.contains.end; '.htm') or (lower-name.contains.end; '.xml')
+        return this.default-for-string
+
+
+    mutable function assign; name string, value template-value
+        if not (valid-identifier; name)
+            throw template-error; 'assignment requires a simple variable name'
+        this.values.set; name, value
+
+    mutable function assign-complex; name string, fields map of string, template-value
+        this.assign; name, (object-value; fields)
+
+    function assigned bool; name string
+        return (this.values.get.checked; name) != none
+
+    mutable function append; name string, text string
+        previous = this.values.get.checked; name
+        if previous != none
+            if previous.kind != 'text'
+                throw template-error; 'append requires a text value'
+            this.assign; name, (text-value; (previous.text.concat; text))
+        else
+            this.assign; name, (text-value; text)
+
+    mutable function add-path; directory string, push bool = true
+        this.loader.add-path; directory, push
+
+    mutable function register-widget; name string, handler function from template-value to string throws throwable
+        if not (valid-identifier; name)
+            throw template-error; 'widget requires a simple name'
+        this.widgets.set; name, handler
+
+    function render string; source string
+        program = parse-template; source
+        return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name), this.mode
+
+    function render-parsed string; program parsed-template
+        validate-program; program
+        return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name), this.mode
+
+    function fetch string; name string, mode string = 'default'
+        return this.fetch-context; name, this.values, 0, mode
+
+    function fetch-context string; name string, context map of string, template-value, depth int, mode string = 'default'
+        check-template-name; name
+        check-template-depth; depth
+        if mode == 'default'
+            mode = this.mode
+        if mode == 'dynamic'
+            program = parse-template; (this.loader.load; name), name
+            return this.render-range; program, context, 0, program.tokens.length, depth, (this.autoescape-for; name), mode
+        if mode != 'compiled'
+            throw template-error; 'template mode must be default, compiled or dynamic'
+        available = this.templates.get.checked; name
+        if available != none
+            renderer = this.templates[name]
+            return renderer; ref this, context, depth
+        throw template-error; ('template not available at build time: '.concat; name, '; use dynamic mode for runtime files')
+
+    function render-widget string; name string, argument template-value
+        available = this.widgets.get.checked; name
+        if available != none
+            handler = this.widgets[name]
+            return handler; argument
+        throw template-error; ('unregistered widget: '.concat; name)
+
+    function display; name string, mode string = 'default'
+        print; (this.fetch; name, mode)
+
+    private function render-range string; program parsed-template, context map of string, template-value, start int, finish int, depth int, autoescape bool, mode string
+        check-template-depth; depth
+        output string = ''
+        cursor int = start
+        while cursor < finish
+            token = program.tokens[cursor]
+            if token.kind == 'text'
+                output = output.concat; token.text
+            else if token.kind == 'output'
+                parts = expression-parts; token.text
+                filter string = ''
+                if parts.length == 2
+                    filter = parts[1].trim;
+                output = output.concat; (format-template-value; (resolve-value; parts[0], ref context), autoescape, filter)
+            else if token.kind == 'if'
+                negate = condition-negated; token.text
+                test = resolve-value; (condition-expression; token.text), ref context
+                selected bool = test.truthy;
+                if negate
+                    selected = not selected
+                boundary int = token.end
+                if token.alternate >= 0
+                    boundary = token.alternate
+                if selected
+                    output = output.concat; (this.render-range; program, context, cursor + 1, boundary, depth + 1, autoescape, mode)
+                else if token.alternate >= 0
+                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
+                cursor = token.end
+            else if token.kind == 'for'
+                sequence = resolve-value; token.text, ref context
+                if sequence.kind != 'list'
+                    throw template-error; 'for requires a list value'
+                boundary int = token.end
+                if token.alternate >= 0
+                    boundary = token.alternate
+                index int = 0
+                while index < sequence.items.length
+                    local-context = template-loop-context; context, token.name, sequence.items[index], index, sequence.items.length
+                    output = output.concat; (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape, mode)
+                    index = index + 1
+                if sequence.items.length == 0 and token.alternate >= 0
+                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
+                cursor = token.end
+            else if token.kind == 'include'
+                included-name = unquote; token.text
+                output = output.concat; (this.fetch-context; included-name, context, depth + 1, mode)
+            else if token.kind == 'widget'
+                words = template-words; token.text
+                argument = empty-value;
+                if words.length == 2
+                    argument = resolve-value; words[1], ref context
+                output = output.concat; (this.render-widget; words[0], argument)
+            cursor = cursor + 1
+        return output

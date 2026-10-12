@@ -1,0 +1,41 @@
+namespace template-render-benchmark
+
+from /core/collections import list, map
+from /core/process import arguments
+from /streaky/template import template-value, text-value, bool-value, list-value, object-value, template-error
+from /generated/template/render-benchmark import make-template-engine
+
+function main;
+    options = arguments;
+    mode string = 'compiled'
+    iterations int = 100000
+    if options.length > 0
+        if not options[0].is-text
+            throw template-error; 'mode must be Unicode text'
+        mode = options[0].text
+    if options.length > 1
+        if not options[1].is-text or options[1].text != 'short'
+            throw template-error; 'the optional second argument must be short'
+        iterations = 20
+    if options.length > 2
+        throw template-error; 'usage: compiled|dynamic [short]'
+    engine = make-template-engine;
+    engine.set-mode; mode
+    engine.assign; 'title', (text-value; '<A page & title>')
+    engine.assign; 'show', (bool-value; true)
+    fields map of string, template-value = map;
+    fields.set; 'name', (text-value; '<Ada & Grace>')
+    people list of template-value = list;
+    populated int = 0
+    while populated < 4
+        people.append; (object-value; fields)
+        populated = populated + 1
+    engine.assign; 'people', (list-value; people)
+    checksum int = 0
+    rendered int = 0
+    while rendered < iterations
+        basic = engine.fetch; 'basic.html'
+        nested = engine.fetch; 'nested.html'
+        checksum = checksum + basic.length + nested.length
+        rendered = rendered + 1
+    print; 'iterations=', iterations, ' checksum=', checksum

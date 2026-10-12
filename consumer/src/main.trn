@@ -1,0 +1,115 @@
+namespace streaky-template-consumer
+
+from /annotation-consumer-protocol import read-request, emit-source, emit-error, error-origin, consumer-error
+from /core/collections import list
+from /core/documents import make-document-none
+from /core/errors import throwable
+from /core/process import arguments
+from /streaky/template import parse-template, generate-template-unit, template-loader, parsed-template, check-template-name, template-identifier-valid, template-include-name
+
+private function fail; message string
+    throw (instance consumer-error; (make-document-none;), message)
+
+private function valid-namespace bool; value string
+    if value == '' or (value.contains.start; '/') or (value.contains.end; '/')
+        return false
+    for segment in (value.split; '/')
+        if not (template-identifier-valid; segment)
+            return false
+    return true
+
+private function contains-name bool; names list of string, name string
+    for previous in names
+        if previous == name
+            return true
+    return false
+
+private function generate string;
+    args = arguments;
+    roots list of string = list;
+    runtime-roots list of string = list;
+    entries list of string = list;
+    output-namespace string = ''
+    namespace-seen bool = false
+    index int = 0
+    while index < args.length
+        argument = args[index].text
+        if argument == '--root' or argument == '--runtime-root' or argument == '--template' or argument == '--namespace'
+            if index + 1 >= args.length
+                fail; ('missing value for '.concat; argument)
+            value = args[index + 1].text
+            if argument == '--root'
+                if value == ''
+                    fail; '--root must not be empty'
+                roots.append; value
+            else if argument == '--runtime-root'
+                if value == ''
+                    fail; '--runtime-root must not be empty'
+                runtime-roots.append; value
+            else if argument == '--template'
+                check-template-name; value
+                entries.append; value
+            else
+                if namespace-seen
+                    fail; '--namespace may be supplied only once'
+                namespace-seen = true
+                output-namespace = value
+            index = index + 1
+        else if argument.contains.start; '--'
+            fail; ('unknown option: '.concat; argument)
+        else
+            fail; ('unexpected argument: '.concat; argument)
+        index = index + 1
+    if not namespace-seen or not (valid-namespace; output-namespace)
+        fail; '--namespace is required and must be a canonical safe namespace'
+    if roots.length == 0
+        fail; 'at least one --root is required'
+    if entries.length == 0
+        fail; 'at least one --template entry is required'
+    loader = instance template-loader;
+    for root in roots
+        loader.add-path; root
+    names list of string = list;
+    parents list of string = list;
+    offsets list of int = list;
+    programs list of parsed-template = list;
+    for entry in entries
+        if not (contains-name; names, entry)
+            names.append; entry
+            parents.append; ''
+            offsets.append; -1
+    program-index int = 0
+    while program-index < names.length
+        name = names[program-index]
+        program parsed-template
+        try
+            program = parse-template; (loader.load; name), name
+        catch throwable as error
+            diagnostic = error.message
+            if not (diagnostic.contains.start; ('template '.concat; name, ' at byte '))
+                diagnostic = 'template '.concat; name, ': ', diagnostic
+            if parents[program-index] != ''
+                diagnostic = diagnostic.concat; '; included by template ', parents[program-index], ' at byte ', offsets[program-index]
+            fail; diagnostic
+        programs.append; program
+        for token in program.tokens
+            if token.kind == 'include'
+                included-name = template-include-name; token
+                try
+                    check-template-name; included-name
+                catch throwable as error
+                    fail; (error.message.concat; '; included by template ', name, ' at byte ', token.offset)
+                if not (contains-name; names, included-name)
+                    names.append; included-name
+                    parents.append; name
+                    offsets.append; token.offset
+        program-index = program-index + 1
+    return generate-template-unit; output-namespace, programs, runtime-roots
+
+
+function main;
+    try
+        read-request;
+        emit-source; 'templates', (generate;)
+    catch throwable as error
+        emit-error; (error-origin;), error.message

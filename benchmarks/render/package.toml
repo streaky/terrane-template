@@ -1,0 +1,17 @@
+package = "template-render-benchmark"
+artifact = "executable"
+rust-toolchain = "pinned"
+
+[namespaces]
+template-render-benchmark = "src"
+
+[profile]
+capabilities = ["filesystem", "process"]
+
+[terrane-dependencies]
+template = { path = "../.." }
+
+[consumers.template]
+command = "../../.trn/consumers/template"
+args = ["--namespace", "generated/template/render-benchmark", "--root", "../../tests/compiled/templates", "--runtime-root", "../../tests/compiled/templates", "--template", "basic.html", "--template", "nested.html"]
+declarations = ["/template-render-benchmark::main"]

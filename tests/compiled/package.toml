@@ -1,0 +1,19 @@
+package = "template-compiled-tests"
+artifact = "executable"
+
+[namespaces]
+"template-compiled-tests" = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[terrane-dependencies]
+template = { path = "../.." }
+
+[testing]
+unit = "tests/unit"
+
+[consumers.template]
+command = "../../.trn/consumers/template"
+args = ["--namespace", "generated/template/compiled-tests", "--root", "templates", "--template", "basic.html", "--template", "plain.txt", "--template", "nested.html", "--template", "widget.html", "--template", "missing.html", "--template", "notobject.html", "--template", "sequence.html", "--template", "recursive.html", "--template", "literals.txt", "--template", "empty.html", "--template", "conditions.html"]
+declarations = ["/template-compiled-tests::main"]

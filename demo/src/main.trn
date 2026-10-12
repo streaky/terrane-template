@@ -1,0 +1,20 @@
+namespace template-demo
+
+from /core/collections import list, map
+from /streaky/template import template-value, text-value, bool-value, list-value, object-value, escape-html
+from /generated/template/template-demo import make-template-engine
+
+function badge string; value template-value
+    return '<strong>'.concat; (escape-html; value.text), '</strong>'
+
+function main;
+    engine = make-template-engine;
+    engine.assign; 'title', (text-value; 'Terrane <templates>')
+    engine.assign; 'show', (bool-value; true)
+    fields map of string, template-value = map;
+    fields.set; 'name', (text-value; 'Ada & Grace')
+    people list of template-value = list;
+    people.append; (object-value; fields)
+    engine.assign; 'people', (list-value; people)
+    engine.register-widget; 'badge', badge
+    print; (engine.fetch; 'page.html')
