@@ -145,6 +145,8 @@ documentation:
         factory with required imports. Single-renderer output declares `throws throwable`;
         callers assembling a unit themselves must import `throwable` from `/core/errors`
         and its referenced support symbols. Prefer complete-unit generation for this reason.
+        Complete-unit generation requires distinct program names; duplicate names raise
+        `template-error` instead of silently replacing an earlier registration.
         Both validate parsed inputs. `template-identifier-valid(value)` shares the
         identifier grammar, and `template-include-name(token)` validates an include token
         and returns its literal filename. Parser, evaluator, and generator implementation

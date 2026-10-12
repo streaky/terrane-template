@@ -109,3 +109,19 @@ function test-container-interpolation-and-unknown-kind-errors;
         catch template-error as error
             message = error.message
         assert-equal-string; message, 'unknown template value kind: invalid'
+
+function test-unit-generation-rejects-duplicate-program-names;
+    roots list of string = list;
+    for separated in (list; false, true)
+        programs list of parsed-template = list;
+        programs.append; (parse-template; 'first', 'a.html')
+        if separated
+            programs.append; (parse-template; 'middle', 'b.html')
+        programs.append; (parse-template; 'last', 'a.html')
+        rejected bool = false
+        try
+            generate-template-unit; 'generated/test/duplicate-names', programs, roots
+        catch template-error as error
+            rejected = true
+            assert-equal-string; error.message, 'duplicate template name: a.html'
+        assert-equal-bool; rejected, true

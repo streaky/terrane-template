@@ -1,6 +1,6 @@
 namespace streaky/template
 
-from /core/collections import range
+from /core/collections import map, range
 
 public function generate-template-function string; program parsed-template, function-name string
     validate-program; program
@@ -39,9 +39,14 @@ public function generate-template-unit string; output-namespace string, programs
         if not (valid-identifier; segment)
             throw template-error; 'invalid output namespace'
     imports = instance generation-imports;
+    names map of string, bool = map;
     for program in programs
         validate-program; program
         check-template-name; program.name
+        seen = names.get.checked; program.name
+        if seen != none
+            throw template-error; ('duplicate template name: '.concat; program.name)
+        names.set; program.name, true
         for token-index in (range; 0, program.tokens.length)
             token = program.tokens[token-index]
             if token.kind == 'output'

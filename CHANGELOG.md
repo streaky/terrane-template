@@ -8,6 +8,8 @@
   their literal include closure; default to compiled lookup with engine/per-call dynamic
   overrides. Expose reusable `parse-template`/`parsed-template`/`render-parsed` for
   interpreted source; includes follow the selected mode in both paths.
+  Complete-unit generation rejects duplicate program names rather than silently overwriting
+  registrations.
 - Select autoescaping by filename: HTML/HTM/XML on, other files off, strings on.
   Support forced on/off, a string default, and explicit `safe`/`escape` filters.
 - Preserve literal Unicode/control bytes and strictly validate file names, UTF-8,
