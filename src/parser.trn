@@ -1,7 +1,7 @@
 namespace streaky/template
 from /core/collections import list, range
 
-class template-frame
+private class template-frame
     kind string = ''
     opener int = -1
     alternate int = -1
@@ -10,7 +10,7 @@ class template-frame
         this.kind = kind
         this.opener = opener
 
-function template-words list of string; text string
+private function template-words list of string; text string
     text = text.replace; '\t', ' '
     text = text.replace; '\r', ' '
     text = text.replace; '\n', ' '
@@ -20,7 +20,7 @@ function template-words list of string; text string
             words.append; word
     return words
 
-function expression-parts list of string; text string
+private function expression-parts list of string; text string
     data = text.encode; utf8
     pieces list of string = list;
     quote int = 0
@@ -38,6 +38,33 @@ function expression-parts list of string; text string
         index = index + 1
     pieces.append; (data[(range; start, data.length)].decode; utf8)
     return pieces
+
+private function quoted bool; value string
+    data = value.encode; utf8
+    return data.length >= 2 and ((data[0] == 39 and data[data.length - 1] == 39) or (data[0] == 34 and data[data.length - 1] == 34))
+
+private function unquote string; value string
+    data = value.encode; utf8
+    return data[(range; 1, data.length - 1)].decode; utf8
+
+public function template-identifier-valid bool; value string
+    return valid-identifier; value
+
+public function template-include-name string; token template-token
+    if token.kind != 'include' or not (valid-quoted-literal; token.text)
+        throw template-error; 'invalid include token', '', token.offset
+    return unquote; token.text
+
+private function condition-negated bool; value string
+    value = value.trim;
+    return value == 'not' or (value.contains.start; 'not ') or (value.contains.start; 'not\t') or (value.contains.start; 'not\n') or (value.contains.start; 'not\r')
+
+private function condition-expression string; value string
+    value = value.trim;
+    if condition-negated; value
+        value = value.trim.start; 'not'
+    return value.trim;
+
 
 public function parse-template parsed-template; source string, name string = ''
     source-bytes = source.encode; utf8
@@ -61,7 +88,7 @@ public function parse-template parsed-template; source string, name string = ''
             while scan + 1 < source-bytes.length and not (source-bytes[scan] == close-byte and source-bytes[scan + 1] == 125)
                 scan = scan + 1
             if scan + 1 >= source-bytes.length
-                throw template-error; 'Unclosed template delimiter'
+                throw template-error; 'unclosed template delimiter', name, cursor
             body = source-bytes[(range; body-start, scan)].decode; utf8
             body = body.trim;
             kind = 'output'
@@ -71,21 +98,21 @@ public function parse-template parsed-template; source string, name string = ''
             if open-byte == 37
                 directive = template-words; body
                 if directive.length == 0
-                    throw template-error; 'Empty template directive'
+                    throw template-error; 'empty template directive', name, cursor
                 word = directive[0]
                 if word == 'if'
                     kind = 'if'
                     body = body.trim.start; 'if'
                     body = body.trim;
                     if not valid-condition; body
-                        throw template-error; 'Invalid if condition'
+                        throw template-error; 'invalid if condition', name, cursor
                 else if word == 'for'
                     kind = 'for'
                     body = body.trim.start; 'for'
                     body = body.trim;
                     parts = template-words; body
-                    if parts.length != 3 or parts[1] != 'in' or not (valid-identifier; parts[0]) or not (valid-path; parts[2])
-                        throw template-error; 'Invalid for directive'
+                    if parts.length != 3 or parts[1] != 'in' or not (valid-identifier; parts[0]) or parts[0] == 'loop' or not (valid-path; parts[2])
+                        throw template-error; 'invalid for directive', name, cursor
                     iterator = parts[0]
                     body = parts[2]
                 else if word == 'include'
@@ -93,32 +120,32 @@ public function parse-template parsed-template; source string, name string = ''
                     body = body.trim.start; 'include'
                     body = body.trim;
                     if not valid-quoted-literal; body
-                        throw template-error; 'Invalid include directive'
+                        throw template-error; 'invalid include directive', name, cursor
                 else if word == 'widget'
                     kind = 'widget'
                     body = body.trim.start; 'widget'
                     body = body.trim;
                     words = template-words; body
                     if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
-                        throw template-error; 'Invalid widget directive'
+                        throw template-error; 'invalid widget directive', name, cursor
                     if words.length == 2 and not (valid-path; words[1])
-                        throw template-error; 'Invalid widget argument'
+                        throw template-error; 'invalid widget argument', name, cursor
                 else if word == 'else'
                     if body != 'else'
-                        throw template-error; 'Invalid else directive'
+                        throw template-error; 'invalid else directive', name, cursor
                     kind = 'else'
                 else if word == 'endif'
                     if body != 'endif'
-                        throw template-error; 'Invalid endif directive'
+                        throw template-error; 'invalid endif directive', name, cursor
                     kind = 'endif'
                 else if word == 'endfor'
                     if body != 'endfor'
-                        throw template-error; 'Invalid endfor directive'
+                        throw template-error; 'invalid endfor directive', name, cursor
                     kind = 'endfor'
                 else
-                    throw template-error; 'Unknown template directive'
+                    throw template-error; 'unknown template directive', name, cursor
             else if open-byte != 35 and not (valid-expression; body)
-                throw template-error; 'Invalid template expression'
+                throw template-error; 'invalid template expression', name, cursor
             token = instance template-token; kind, body, cursor
             if kind == 'for'
                 token.name = iterator
@@ -128,10 +155,10 @@ public function parse-template parsed-template; source string, name string = ''
                 frames.append; (instance template-frame; kind, index)
             else if kind == 'else'
                 if frames.length == 0
-                    throw template-error; 'Unexpected else directive'
+                    throw template-error; 'unexpected else directive', name, cursor
                 frame = frames[frames.length - 1]
                 if frame.alternate >= 0
-                    throw template-error; 'Unexpected or duplicate else directive'
+                    throw template-error; 'unexpected or duplicate else directive', name, cursor
                 frame.alternate = index
                 frames.set; frames.length - 1, frame
                 opener = tokens[frame.opener]
@@ -139,10 +166,10 @@ public function parse-template parsed-template; source string, name string = ''
                 tokens.set; frame.opener, opener
             else if kind == 'endif' or kind == 'endfor'
                 if frames.length == 0
-                    throw template-error; 'Unexpected closing directive'
+                    throw template-error; 'unexpected closing directive', name, cursor
                 frame = frames[frames.length - 1]
                 if (kind == 'endif' and frame.kind != 'if') or (kind == 'endfor' and frame.kind != 'for')
-                    throw template-error; 'Mismatched closing directive'
+                    throw template-error; 'mismatched closing directive', name, cursor
                 frames.remove; frames.length - 1
                 opener = tokens[frame.opener]
                 opener.end = index
@@ -159,7 +186,8 @@ public function parse-template parsed-template; source string, name string = ''
         literal = source-bytes[(range; literal-start, source-bytes.length)].decode; utf8
         tokens.append; (instance template-token; 'text', literal, literal-start)
     if frames.length > 0
-        throw template-error; 'Unclosed control directive'
+        opener = tokens[frames[frames.length - 1].opener]
+        throw template-error; 'unclosed control directive', name, opener.offset
     return instance parsed-template; tokens, name
 
 private function valid-expression bool; value string
@@ -167,7 +195,7 @@ private function valid-expression bool; value string
     if parts.length < 1 or parts.length > 2
         return false
     expression = parts[0].trim;
-    if not ((valid-path; expression) or (valid-quoted-literal; expression) or expression == 'true' or expression == 'false' or expression == 'none')
+    if not (valid-atom; expression)
         return false
     if parts.length == 2
         filter = parts[1].trim;
@@ -175,13 +203,13 @@ private function valid-expression bool; value string
             return false
     return true
 
+private function valid-atom bool; value string
+    return (valid-path; value) or (valid-quoted-literal; value) or value == 'true' or value == 'false' or value == 'none'
+
 private function valid-condition bool; value string
-    if value.contains.start; 'not '
-        value = value.trim.start; 'not '
-        value = value.trim;
-    if (value.contains; '|')
-        return false
-    return valid-expression; value
+    expression = condition-expression; value
+    parts = expression-parts; expression
+    return parts.length == 1 and (valid-atom; (expression.trim;))
 
 private function valid-path bool; value string
     segments = value.split; '.'

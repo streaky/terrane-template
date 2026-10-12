@@ -60,6 +60,9 @@ documentation:
         renders the empty value as an empty string. A list or object cannot be interpolated
         directly. Dot-separated paths resolve object fields only; a missing root or field is
         an error.
+        Supported `kind` tags are `none`, `bool`, `text`, `list`, and `object`.
+        Unknown tags raise `template-error` during truthiness and interpolation rather
+        than becoming false or being mistaken for containers.
   sections: []
   see-also:
     - template.api.template-engine

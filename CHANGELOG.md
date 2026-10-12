@@ -2,14 +2,21 @@
 
 ## Unreleased
 
-- Add a pure Terrane template engine with configurable interpolation escaping, strict value lookup, loops, includes, widgets, and trusted filesystem search roots.
-- Add package documentation and a runnable demo.
-- Select autoescaping by filename following Jinja's recommended policy: HTML/HTM/XML on, other files off, and strings on by default. Add forced on/off and string-default configuration; includes select by their own filename and explicit `escape` remains effective when autoescaping is off.
-- Rename the package to `template` with manifest identity and public namespace `streaky/template`; migrate the demo, tests, and documentation without old-namespace aliases.
-
-- Replace the old compiled-token names with `parse-template`, `parsed-template`, and
-  `render-parsed`; parsed tokens are reusable interpreted representation, distinct from
-  ahead-of-time generation.
-- Add a native Terrane build consumer for ahead-of-time rendering from explicit template entries and their literal include closure. Every engine defaults to compiled mode and supports per-engine and per-call dynamic overrides; generated render functions contain native control flow rather than a token interpreter.
-- Preserve literal Unicode/control bytes across generated and dynamic modes, and distinguish actual NUL characters from digits in template path validation.
-- Add an equal-work native benchmark for compiled/dynamic CPU and bounded allocation comparisons using Terrane's built-in profiler.
+- Add a pure Terrane template package with public namespace `streaky/template`,
+  strict lookup, conditionals, loops, includes, widgets, and trusted filesystem roots.
+- Generate native Terrane render functions at build time from explicit entries and
+  their literal include closure; default to compiled lookup with engine/per-call dynamic
+  overrides. Expose reusable `parse-template`/`parsed-template`/`render-parsed` for
+  interpreted source; includes follow the selected mode in both paths.
+- Select autoescaping by filename: HTML/HTM/XML on, other files off, strings on.
+  Support forced on/off, a string default, and explicit `safe`/`escape` filters.
+- Preserve literal Unicode/control bytes and strictly validate file names, UTF-8,
+  file size, parsed-program syntax/structure, and include/control depth.
+- Diagnose template failures with names and UTF-8 byte offsets, including build-time
+  include provenance. Keep internal helpers private and document generator support.
+- Separate build roots from optional cwd-relative `--runtime-root` configuration.
+  Generate only required imports and skip unused loop contexts in empty/literal bodies.
+- Accept negation separated by tabs/newlines and quoted pipes in conditions; reserve
+  `loop` as an iterator name, diagnose unknown value kinds, and support throwing widgets.
+- Add package documentation, a runnable demo, behavioral/consumer regressions, and an
+  equal-work native benchmark for CPU and bounded allocation profiling.

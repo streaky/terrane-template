@@ -5,11 +5,20 @@ from /core/errors import throwable
 public class template-error implements throwable
     message string = ''
 
-    function construct; message string
+    function construct; message string, name string = '', offset int = -1
+        if name != '' or offset >= 0
+            template-label = name
+            if template-label == ''
+                template-label = '<string>'
+            if offset >= 0
+                message = ('template '.concat; template-label, ' at byte ', offset, ': ', message)
+            else
+                message = ('template '.concat; template-label, ': ', message)
         this.message = message
 
     function render string;
         return this.message
+
 
 public class template-value
     kind string = 'none'
@@ -29,7 +38,7 @@ public class template-value
             return this.items.length > 0
         if this.kind == 'object'
             return this.fields.length > 0
-        return false
+        throw template-error; ('unknown template value kind: '.concat; this.kind)
 
 public function text-value template-value; value string
     result = instance template-value;

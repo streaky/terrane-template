@@ -36,6 +36,10 @@ documentation:
         dynamic fetches nor parsed templates provide an automatic file cache. Parsing does
         not resolve context paths, so undefined values and runtime type mismatches can still
         fail while rendering.
+        Public rendering/generation of parsed programs validates all token syntax and
+        structural edges, including inactive branches, before execution or generation.
+        Parser-produced programs are trusted internally; evaluation does not repeat grammar
+        validation for every loop iteration.
     - type: example
       id: parse-and-render
       title: "Parse source for repeated interpreted rendering"
@@ -60,8 +64,12 @@ documentation:
         package selects the native template consumer with `[consumers.template]`, string
         `args`, and a nonempty canonical `declarations` list. The application's `main`
         is a convenient selection anchor; it does not need template annotations. Pass
-        `--namespace`, repeat `--root` for search roots, and repeat `--template` for entry
-        files. Roots are relative to the consuming package and later roots win.
+        `--namespace`, repeat `--root` for build search roots, and repeat `--template` for entry
+        files. Build roots resolve relative to the consuming package and later roots win.
+        Build roots are not embedded in the generated factory. Repeat `--runtime-root` to
+        configure separate runtime search directories; relative runtime roots resolve from
+        the process working directory. With none supplied, the factory configures no runtime
+        roots. A deployed application may instead call `add-path` with its own directories.
         Only configured entries and recursively discovered literal includes enter the
         inventory; unrelated files are not scanned or embedded. Invalid syntax, invalid
         names, and unavailable includes diagnose at build time. Cycles are discovered once
@@ -70,7 +78,7 @@ documentation:
         Run `sh packages/template/build-consumer.sh` before building the application. It
         installs the native consumer executable under the package's ignored build directory.
         The configured generated namespace exports `make-template-engine`, which registers
-        ordinary Terrane render functions and the search roots in an independent engine.
+        ordinary Terrane render functions and only explicitly supplied runtime roots.
         Those functions contain literal output, direct field accesses, and native control
         flow, not an embedded token interpreter. Rebuild the application after template edits;
         rebuild the consumer executable only when its own source changes.
@@ -81,6 +89,7 @@ documentation:
         through includes. Dynamic files are reread and parsed at runtime. Runtime-only
         templates require dynamic mode; compiled lookup errors rather than falling back.
         `render(source)` and `render-parsed(program)` remain explicitly interpreted paths.
+        Includes from either interpreted source API follow the engine's current mode.
     - type: example
       id: template-consumer-manifest
       title: Configure an application beside the template package
@@ -91,7 +100,7 @@ documentation:
       source: |-
         [consumers.template]
         command = "../template/.trn/consumers/template"
-        args = ["--namespace", "generated/template/my-app", "--root", "templates", "--template", "page.html"]
+        args = ["--namespace", "generated/template/my-app", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
         declarations = ["/my-app::main"]
       response: null
       diagnostic: null
@@ -123,8 +132,23 @@ documentation:
         invalid expressions or filters, mismatched control blocks, undefined variables or
         object fields, invalid runtime value kinds, invalid file names, missing or unreadable
         templates, invalid UTF-8, files over 1 MiB, unavailable compiled inventory entries,
-        invalid render modes, and unregistered widgets. Build-time failures are reported as
-        consumer diagnostics. Neither path silently turns failures into empty output.
+        invalid render modes, and unregistered widgets. Parser and structural errors name the
+        template (or `<string>`) and zero-based UTF-8 byte offset. Missing/malformed build
+        includes also name the first including template and its include byte offset.
+        Build-time failures are reported as consumer diagnostics. Neither path silently
+        turns failures into empty output.
+    - type: markdown
+      markdown: |-
+        Generator-support APIs are public so generated namespaces and the native consumer can
+        call them: `generate-template-function(program, function-name)` emits one renderer;
+        `generate-template-unit(namespace, programs, runtime-roots)` emits a complete unit and
+        factory with required imports. Single-renderer output declares `throws throwable`;
+        callers assembling a unit themselves must import `throwable` from `/core/errors`
+        and its referenced support symbols. Prefer complete-unit generation for this reason.
+        Both validate parsed inputs. `template-identifier-valid(value)` shares the
+        identifier grammar, and `template-include-name(token)` validates an include token
+        and returns its literal filename. Parser, evaluator, and generator implementation
+        helpers are private to the package namespace.
   sections: []
   see-also:
     - template.api.template-engine
@@ -133,3 +157,4 @@ documentation:
 provenance:
   specification: null
   conformance: null
+  compiler: null

@@ -1,0 +1,111 @@
+namespace streaky/template
+
+from /core/collections import list, map
+from /core/testing import assert-equal-bool, assert-equal-string
+
+private function assert-invalid-program; program parsed-template
+    engine = instance template-engine;
+    for generate in (list; false, true)
+        rejected bool = false
+        try
+            if generate
+                generate-template-function; program, 'render-test'
+            else
+                engine.render-parsed; program
+        catch template-error as error
+            rejected = true
+            assert-equal-bool; (error.message.contains; 'template broken.html at byte '), true
+        assert-equal-bool; rejected, true
+
+function test-hand-built-program-rejects-nonforward-and-out-of-bounds-edges;
+    for end-index in (list; -1, 0, 1, 100)
+        token = instance template-token; 'if', 'true', 0
+        token.end = end-index
+        tokens list of template-token = list;
+        tokens.append; token
+        assert-invalid-program; (instance parsed-template; tokens, 'broken.html')
+    for alternate in (list; -2, 0, 2, 100)
+        program = parse-template; '{% if true %}x{% endif %}', 'broken.html'
+        token = program.tokens[0]
+        token.alternate = alternate
+        program.tokens.set; 0, token
+        assert-invalid-program; program
+
+function test-mutated-program-rejects-crossing-closing-and-alternate-markers;
+    program = parse-template; '{% if true %}{% if true %}{% endif %}{% endif %}', 'broken.html'
+    token = program.tokens[0]
+    token.end = 2
+    program.tokens.set; 0, token
+    assert-invalid-program; program
+    program = parse-template; '{% if true %}{% endif %}', 'broken.html'
+    token = program.tokens[1]
+    token.kind = 'endfor'
+    token.text = 'endfor'
+    program.tokens.set; 1, token
+    assert-invalid-program; program
+    program = parse-template; '{% if true %}{% else %}{% endif %}', 'broken.html'
+    token = program.tokens[1]
+    token.end = 1
+    program.tokens.set; 1, token
+    assert-invalid-program; program
+    program = parse-template; '{% if true %}{% else %}{% endif %}', 'broken.html'
+    token = program.tokens[0]
+    token.alternate = -1
+    program.tokens.set; 0, token
+    assert-invalid-program; program
+
+function test-mutated-program-rejects-unknown-kinds-and-inactive-invalid-syntax;
+    for kind in (list; 'unknown', 'output', 'include', 'widget', 'else', 'endif', 'for')
+        token = instance template-token; kind, 'a..b', 0
+        tokens list of template-token = list;
+        tokens.append; token
+        assert-invalid-program; (instance parsed-template; tokens, 'broken.html')
+    program = parse-template; '{% if false %}hidden{% endif %}', 'broken.html'
+    token = program.tokens[1]
+    token.kind = 'output'
+    token.text = '"inner"quote"'
+    program.tokens.set; 1, token
+    assert-invalid-program; program
+
+function test-parser-reports-template-and-utf8-byte-offset;
+    failed bool = false
+    try
+        parse-template; 'é{% if not %}', 'bad.html'
+    catch template-error as error
+        failed = true
+        assert-equal-string; error.message, 'template bad.html at byte 2: invalid if condition'
+    assert-equal-bool; failed, true
+
+function test-negation-whitespace-and-quoted-pipe-conditions;
+    engine = instance template-engine;
+    engine.assign; 'show', (bool-value; false)
+    assert-equal-string; (engine.render; '{% if not\tshow %}tab{% endif %}{% if not\nshow %}line{% endif %}{% if "a|b" %}pipe{% endif %}'), 'tablinepipe'
+    failed bool = false
+    try
+        parse-template; '{% for loop in items %}{% endfor %}'
+    catch template-error as error
+        failed = error.message.contains; 'invalid for directive'
+    assert-equal-bool; failed, true
+
+function test-container-interpolation-and-unknown-kind-errors;
+    engine = instance template-engine;
+    values list of template-value = list;
+    fields map of string, template-value = map;
+    for value in (list; (list-value; values), (object-value; fields))
+        engine.assign; 'value', value
+        message string = ''
+        try
+            engine.render; '{{ value }}'
+        catch template-error as error
+            message = error.message
+        assert-equal-string; message, 'lists and objects cannot be interpolated directly'
+    unknown = instance template-value;
+    unknown.kind = 'invalid'
+    engine.assign; 'value', unknown
+    for source in (list; '{{ value }}', '{% if value %}x{% endif %}')
+        message string = ''
+        try
+            engine.render; source
+        catch template-error as error
+            message = error.message
+        assert-equal-string; message, 'unknown template value kind: invalid'

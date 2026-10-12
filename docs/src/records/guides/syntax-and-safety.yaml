@@ -33,8 +33,8 @@ documentation:
         unescaped text or `|escape` to force HTML escaping regardless of the engine policy.
         Only one filter is accepted. The supported
         atoms are quoted string literals, `true`, `false`, `none`, and dot-separated variable
-        or object-field paths. Quoted strings have no backslash escapes. Lists and objects
-        cannot be interpolated directly; select a field or iterate a list.
+        or object-field paths. Quoted strings reject backslashes entirely, including escapes.
+        Lists and objects cannot be interpolated directly; select a field or iterate a list.
     - type: example
       id: supported-template
       title: "Interpolation and list iteration"
@@ -67,6 +67,7 @@ documentation:
         and empty objects; other supported values are true. `for name in path` iterates lists,
         may have an `else` for an empty list, and ends with `endfor`. Each iteration exposes
         `loop.index` (one-based), `loop.index0` (zero-based), `loop.first`, and `loop.last`.
+        `loop` is reserved for this metadata and cannot be an iterator name.
         The iterator and loop metadata are local to the iteration; outer values are not
         overwritten. Includes require a quoted relative template name and inherit the current
         values, but select escaping independently by their own filename. Their rendered output
@@ -104,9 +105,11 @@ documentation:
         Spaces, tabs, and newlines separate directive words. Quoted literals may contain a
         pipe without introducing a filter. Delimiter sequences terminate their token even
         inside quotes; escaping delimiters, whitespace-control markers, and raw blocks are
-        not supported. A compiled template retains parsed control flow; includes are loaded
-        and compiled on each render. An engine holds its own assignment and widget state;
-        there is no process-global context.
+        not supported. A `parsed-template` retains interpreted tokens; generated templates
+        contain ahead-of-time native control flow. Includes follow the selected mode:
+        compiled includes use the build inventory, while dynamic includes load and parse
+        on each render. An engine holds its own assignment and widget state; there is no
+        process-global context.
   sections: []
   see-also:
     - template.guide.introduction

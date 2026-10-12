@@ -26,11 +26,11 @@ capabilities = ["filesystem"]
 
 [consumers.template]
 command = "../template/.trn/consumers/template"
-args = ["--namespace", "generated/template/my-app", "--root", "templates", "--template", "page.html"]
+args = ["--namespace", "generated/template/my-app", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
 declarations = ["/my-app::main"]
 ```
 
-Adjust the paths and namespace for the application. Consumer commands and template roots are resolved from the consuming package's directory. Terrane requires a nonempty declaration selection; the application's canonical `main` is a convenient selection anchor, and the template consumer does not require annotations on it.
+Adjust the paths and namespace for the application. Consumer commands and build roots (`--root`) resolve from the consuming package's directory. Build roots are not embedded in the factory. Optional, repeatable `--runtime-root` values configure separate runtime search paths; relative runtime roots resolve from the process working directory. With no runtime roots supplied, configure dynamic loading with `engine.add-path` in the application. Terrane requires a nonempty declaration selection; the application's canonical `main` is a convenient selection anchor, and the template consumer does not require annotations on it.
 
 Repeat `--root` for search roots (later roots win), and `--template` for entry templates. Only those entries and their recursively discovered literal includes are compiled. Roots are **not** scanned indiscriminately: unrelated files remain runtime-only. Malformed templates, invalid names, and missing includes diagnose during the build. Include cycles can be compiled; rendering rejects excessive include/control nesting at depth 64.
 
@@ -45,7 +45,7 @@ engine.assign; 'title', (text-value; 'A page')
 html = engine.fetch; 'page.html'
 ```
 
-The generated functions contain literal output, direct root/field lookups, and native Terrane `if`/`while` control flow—not a stored token stream or a runtime expression parser. The factory registers those functions and the runtime search roots in an independent engine. Rebuild the application after changing an ahead-of-time template; the consumer executable only needs rebuilding when its implementation changes.
+The generated functions contain literal output, direct root/field lookups, and native Terrane `if`/`while` control flow—not a stored token stream or a runtime expression parser. The factory registers those functions and only explicitly supplied runtime roots in an independent engine. Rebuild the application after changing an ahead-of-time template; the consumer executable only needs rebuilding when its implementation changes.
 
 ## Compiled and dynamic modes
 
@@ -61,7 +61,7 @@ engine.set-mode; 'compiled'
 
 `fetch(name, mode='default')` and `display(name, mode='default')` accept `default`, `compiled`, or `dynamic`. The default inherits the engine setting; an override does not change it. Includes follow the selected mode and retain their own filename's escaping policy. Compiled lookup never silently falls back to disk. Use dynamic mode for files created, changed, or selected only at runtime; each dynamic fetch rereads them.
 
-`render(source)` always parses runtime source, regardless of the fetch mode. For reusable interpreted data, `parse-template(source, name='')` returns a `parsed-template`, and `render-parsed` renders it against current assignments. This avoids reparsing that supplied source but is **not** ahead-of-time compilation or an automatic file cache.
+`render(source)` always parses runtime source, regardless of the fetch mode; its includes follow the engine's current mode. For reusable interpreted data, `parse-template(source, name='')` returns a `parsed-template`, and `render-parsed` renders it against current assignments with the same include policy. This avoids reparsing that supplied source but is **not** ahead-of-time compilation or an automatic file cache. Public parsed-program rendering and generation validate syntax and complete control-block structure before use.
 
 ## Values and escaping
 
@@ -75,6 +75,8 @@ Both modes follow Jinja's recommended autoescape selection: `.html`, `.htm`, and
 
 Template source and search roots are trusted. The engine does not sandbox template authors. Files are bounded to 1 MiB and strict UTF-8; relative names reject NUL, absolute paths, backslashes, colons, empty components, `.` and `..`. Search roots may contain symlinks and are not a filesystem sandbox. Runtime `add-path` changes dynamic search precedence, not the already-generated inventory. Assignments, widgets, and escaping settings remain mutable in either mode.
 
+Parser/structural failures identify the template and zero-based UTF-8 byte offset. Build-time include failures also identify the first including template and its include offset. Widget callbacks may declare `throws throwable` (or a narrower compatible bound); errors propagate in both modes.
+
 ## Profile both rendering paths
 
 `benchmarks/render` is an equal-work native workload: each iteration renders an
@@ -82,19 +84,19 @@ interpolated page and a nested-loop/include page, then reports an output checksu
 It accepts `compiled` or `dynamic`; the optional `short` argument uses 20 iterations
 instead of 100,000 for allocation captures.
 
-From `packages/template`, with the native consumer built and the profiling collectors
-available:
+From `packages/template/benchmarks/render`, with the native consumer built and the
+profiling collectors available (the benchmark's relative runtime roots require this cwd):
 
 ```sh
-terrane=../../target/debug/terrane
+terrane=../../../../target/debug/terrane
 for mode in compiled dynamic; do
   "$terrane" profile record --cpu --embed-sources --retain-arguments \
-    -o ".trn/profile-$mode-cpu.trnprof" benchmarks/render -- "$mode"
+    -o "../../.trn/profile-$mode-cpu.trnprof" . -- "$mode"
   "$terrane" profile record --allocations --embed-sources --retain-arguments \
-    -o ".trn/profile-$mode-allocations.trnprof" benchmarks/render -- "$mode" short
+    -o "../../.trn/profile-$mode-allocations.trnprof" . -- "$mode" short
 done
-"$terrane" profile show .trn/profile-compiled-allocations.trnprof \
-  --compare .trn/profile-dynamic-allocations.trnprof --limit 10
+"$terrane" profile show ../../.trn/profile-compiled-allocations.trnprof \
+  --compare ../../.trn/profile-dynamic-allocations.trnprof --limit 10
 ```
 
 Keep CPU and allocation evidence separate: allocation collection is instrumented.
@@ -104,6 +106,12 @@ event bound for this benchmark. CPU attribution may be unavailable even when agg
 capture timing and native allocation stacks are useful. Captures are ignored build
 artifacts under `.trn/`; retain them for subsequent inspection.
 
+Ahead-of-time rendering removes runtime parsing, not all allocation. Context maps use
+copy-on-write storage: read-only fetches share backing storage, but adding iterator and
+`loop` bindings copies the map's entries to preserve outer scope. Large contexts in
+item-dependent loops therefore still have context-size-dependent costs. Generated empty
+and literal-only bodies skip creating a loop context.
+
 ## Verify
 
 From `packages/template`:
@@ -112,6 +120,7 @@ From `packages/template`:
 sh build-consumer.sh
 ../../target/debug/terrane test --argument "$PWD/tests/fixtures" .
 ../../target/debug/terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
+python tests/consumer.py
 ```
 
 The arguments provide read-only fixture roots because Terrane runs tests in isolated working directories. Runtime-write cases write only in those directories. The second suite exercises real generated render functions against the dynamic implementation.

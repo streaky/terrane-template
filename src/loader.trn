@@ -6,7 +6,7 @@ from /core/errors import decode-error
 from /core/filesystem import filesystem-capability, filesystem-exists, filesystem-read-bounded
 from /core/filesystem/paths import join-path, path
 
-function contains-template-nul bool; text string
+private function contains-template-nul bool; text string
     data = text.encode; utf8
     index int = 0
     while index < data.length

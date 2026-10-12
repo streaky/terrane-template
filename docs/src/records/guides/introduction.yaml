@@ -53,10 +53,11 @@ documentation:
       markdown: null
     - type: markdown
       markdown: |-
-        Run the included demo from `packages/template/demo`: invoke
-        `../../../target/debug/terrane run .` for a repository-built binary, or `terrane run .` when the
-        compiler is installed. It uses `templates/page.html` and demonstrates object/list
-        assignment, escaping, includes, and a widget.
+        First run `sh packages/template/build-consumer.sh` from the compiler checkout
+        to build the native consumer. Then run the included demo from `packages/template/demo`:
+        invoke `../../../target/debug/terrane run .` for a repository-built binary, or
+        `terrane run .` when the compiler is installed. It uses `templates/page.html` and
+        demonstrates object/list assignment, escaping, includes, and a widget.
   sections:
     - id: start-here
       title: "Start here"

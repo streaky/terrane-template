@@ -8,5 +8,5 @@ streaky-template-consumer = "src"
 capabilities = ["filesystem", "process"]
 
 [terrane-dependencies]
-streaky-template = { path = ".." }
+template = { path = ".." }
 annotation-consumer-protocol = { path = "../../../tools/annotation-consumers/protocol" }

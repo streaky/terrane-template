@@ -1,12 +1,15 @@
 namespace template-compiled-tests
 
-from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value
+from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html, parse-template, template-error
 from /generated/template/compiled-tests import make-template-engine
 from /core/filesystem import filesystem-capability, filesystem-write-atomic
 from /core/filesystem/paths import path
 from /core/errors import throwable
 from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
 from /core/collections import map, list
+
+private function badge string; value template-value
+    return '<strong>'.concat; (escape-html; value.text), '</strong>'
 
 function fixture-engine template-engine;
     arguments = test-arguments;
@@ -156,3 +159,53 @@ function test-zero-in-runtime-filename-is-not-nul;
     expected = 'invalid template name: '.concat; name
     assert-equal-string; (rendering-error; ref engine, name, 'compiled'), expected
     assert-equal-string; (rendering-error; ref engine, name, 'dynamic'), expected
+
+function test-empty-and-literal-only-control-body-parity;
+    engine = fixture-engine;
+    items list of template-value = list;
+    items.append; (text-value; 'x')
+    items.append; (text-value; 'y')
+    engine.assign; 'items', (list-value; items)
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'empty.html', mode), 'ABCLLliteralliteral\n'
+    empty-items list of template-value = list;
+    engine.assign; 'items', (list-value; empty-items)
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'empty.html', mode), 'ABC\n'
+    engine.assign; 'items', (text-value; 'wrong kind')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, 'empty.html', mode), 'for requires a list value'
+
+function test-negation-whitespace-and-quoted-condition-parity;
+    engine = fixture-engine;
+    engine.assign; 'show', (bool-value; false)
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'conditions.html', mode), 'TNP\n'
+    engine.assign; 'show', (bool-value; true)
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'conditions.html', mode), 'P\n'
+
+function test-interpreted-includes-follow-engine-mode;
+    engine = make-template-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    source = '{% include "basic.html" %}'
+    program = parse-template; source
+    expected = '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.render; source), expected
+    assert-equal-string; (engine.render-parsed; program), expected
+    engine.add-path; '.'
+    save-runtime-template; 'basic.html', 'runtime {{ title }}'
+    assert-equal-string; (engine.render; source), expected
+    engine.set-mode; 'dynamic'
+    assert-equal-string; (engine.render; source), 'runtime &lt;x&gt;'
+    assert-equal-string; (engine.render-parsed; program), 'runtime &lt;x&gt;'
+
+private function failing-widget string throws template-error; value template-value
+    throw template-error; ('widget failed: '.concat; value.text)
+
+function test-widget-declared-throw-contract-propagates-in-both-modes;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; 'input')
+    engine.register-widget; 'badge', failing-widget
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, 'widget.html', mode), 'widget failed: input'

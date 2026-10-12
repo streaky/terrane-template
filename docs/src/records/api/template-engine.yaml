@@ -54,10 +54,11 @@ documentation:
       markdown: null
     - type: markdown
       markdown: |-
-        Widget handlers have type `function from template-value to string`. `register-widget`
-        associates a simple name with a handler. A `{% widget name %}` call passes the empty
-        value; `{% widget name path %}` resolves and passes the named value. Returned strings
-        are inserted as trusted HTML without automatic escaping.
+        Widget handlers have type `function from template-value to string throws throwable`.
+        `register-widget` associates a simple name with a handler. A `{% widget name %}` call
+        passes the empty value; `{% widget name path %}` resolves and passes the named value.
+        Returned strings are inserted as trusted HTML without automatic escaping. Handlers
+        may declare a compatible `throws` bound; errors propagate in both rendering modes.
 
         `add-path(directory, push=true)` registers a non-empty search directory. With the
         default `push=true`, it appends to the search list; lookup searches from newest to
@@ -71,6 +72,9 @@ documentation:
         `default` inherits the engine mode. Overrides are not sticky, and includes follow
         the selected mode. Runtime-only templates require dynamic mode; compiled lookup
         never falls back to disk. Runtime search-path changes affect only dynamic loading.
+        Includes in `render` and `render-parsed` follow the engine's current mode too.
+        Relative runtime roots resolve from the process working directory, not the build
+        package directory.
         Mutable engine methods are marked
         `mutable` in Terrane; call headers and invocation syntax require semicolons.
     - type: markdown
@@ -111,6 +115,18 @@ documentation:
         Assignment names, widget names, and path segments in expressions use ASCII letters,
         digits, underscores, and hyphens. Numeric values can be supplied as text, for example
         with Terrane's canonical text conversion through `''.concat; count`.
+    - type: markdown
+      markdown: |-
+        Generator-support engine methods remain public: `register-template(name, renderer)`
+        stores a callable of type `function from (ref template-engine),
+        (map of string, template-value), int to string throws throwable`;
+        `fetch-context(name, context, depth, mode='default')` renders with explicit context
+        and depth; `render-widget(name, argument)` invokes a handler; and
+        `autoescape-for(name)` selects current escaping. Generated code also uses
+        `check-template-depth(depth)`, `template-lookup(context, name, expression='')`,
+        `template-field(value, name, expression)`, `template-loop-context(context, name,
+        value, index, count)`, and `format-template-value(value, autoescape, filter='')`.
+        These are low-level support operations, not alternative expression parsers.
   sections: []
   see-also:
     - template.api.values

@@ -13,5 +13,5 @@ template = { path = "../.." }
 
 [consumers.template]
 command = "../../.trn/consumers/template"
-args = ["--namespace", "generated/template/render-benchmark", "--root", "../../tests/compiled/templates", "--template", "basic.html", "--template", "nested.html"]
+args = ["--namespace", "generated/template/render-benchmark", "--root", "../../tests/compiled/templates", "--runtime-root", "../../tests/compiled/templates", "--template", "basic.html", "--template", "nested.html"]
 declarations = ["/template-render-benchmark::main"]

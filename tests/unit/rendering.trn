@@ -33,6 +33,7 @@ function test-loader-rejects-missing-and-invalid-names;
 
 function test-includes-inherit-render-context;
     engine = instance template-engine;
+    engine.set-mode; 'dynamic'
     engine.add-path; (fixture-path; 'includes')
     engine.assign; 'value', (text-value; '<inherited>')
     assert-equal-string; (engine.render; 'before:{% include "child.html" %}:after'), 'before:child=&lt;inherited&gt;\n:after'
