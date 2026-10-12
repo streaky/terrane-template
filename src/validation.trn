@@ -64,7 +64,7 @@ private function validate-program; program parsed-template
                 if words.length == 2 and not (valid-path; words[1])
                     throw template-error; 'invalid widget argument', program.name, token.offset
             case else
-                throw template-error; ('unknown template token kind: '.concat; token.kind), program.name, token.offset
+                throw template-error; 'unknown template token kind: ' + token.kind, program.name, token.offset
     if stack.length > 0
         opener = tokens[stack[stack.length - 1]]
         throw template-error; 'unclosed control directive', program.name, opener.offset

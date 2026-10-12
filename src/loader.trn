@@ -17,10 +17,10 @@ private function contains-template-nul bool; text string
 
 public function check-template-name; name string
     if name == '' or (contains-template-nul; name) or (name.contains; '\\') or (name.contains; ':') or (name.contains.start; '/')
-        throw template-error; ('invalid template name: '.concat; name)
+        throw template-error; 'invalid template name: ' + name
     for part in (name.split; '/')
         if part == '' or part == '.' or part == '..'
-            throw template-error; ('invalid template name: '.concat; name)
+            throw template-error; 'invalid template name: ' + name
 
 public class template-loader
     private paths list of string
@@ -56,10 +56,10 @@ public class template-loader
                 if loaded.failed
                     throw template-error; loaded.message
                 if loaded.completed >= 1048577
-                    throw template-error; ('template exceeds 1048576-byte limit: '.concat; name)
+                    throw template-error; 'template exceeds 1048576-byte limit: ' + name
                 try
                     return loaded.data.decode; utf8
                 catch decode-error
-                    throw template-error; ('template is not valid UTF-8: '.concat; name)
+                    throw template-error; 'template is not valid UTF-8: ' + name
             search-index = search-index - 1
-        throw template-error; ('template not found: '.concat; name)
+        throw template-error; 'template not found: ' + name

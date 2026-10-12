@@ -22,7 +22,6 @@ private function resolve-value template-value; expression string, context ref (m
         index = index + 1
     return current
 
-
 public class template-engine
     private values map of string, template-value
     private widgets map of string, function from template-value to string throws throwable

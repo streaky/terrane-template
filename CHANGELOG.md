@@ -9,7 +9,6 @@
   directive, validation, and token dispatch without changing template syntax.
 - Use multi-search replacement for one-pass HTML escaping, source-literal quoting,
   and directive whitespace normalization; never rescan inserted escape sequences.
-
 - Add a pure Terrane template package with public namespace `streaky/template`,
   strict lookup, conditionals, loops, includes, widgets, and trusted filesystem roots.
 - Generate native Terrane render functions at build time from explicit entries and

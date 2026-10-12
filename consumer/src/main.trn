@@ -36,7 +36,7 @@ private function generate string;
         argument = args[index].text
         if argument == '--root' or argument == '--runtime-root' or argument == '--template' or argument == '--namespace'
             if index + 1 >= args.length
-                fail; ('missing value for '.concat; argument)
+                fail; 'missing value for ' + argument
             value = args[index + 1].text
             if argument == '--root'
                 if value == ''
@@ -56,9 +56,9 @@ private function generate string;
                 output-namespace = value
             index = index + 1
         else if argument.contains.start; '--'
-            fail; ('unknown option: '.concat; argument)
+            fail; 'unknown option: ' + argument
         else
-            fail; ('unexpected argument: '.concat; argument)
+            fail; 'unexpected argument: ' + argument
         index = index + 1
     if not namespace-seen or not (valid-namespace; output-namespace)
         fail; '--namespace is required and must be a canonical safe namespace'
@@ -86,10 +86,10 @@ private function generate string;
             program = parse-template; (loader.load; name), name
         catch throwable as error
             diagnostic = error.message
-            if not (diagnostic.contains.start; ('template '.concat; name, ' at byte '))
-                diagnostic = 'template '.concat; name, ': ', diagnostic
+            if not (diagnostic.contains.start; 'template ' + name + ' at byte ')
+                diagnostic = 'template ' + name + ': ' + diagnostic
             if parents[program-index] != ''
-                diagnostic = diagnostic.concat; '; included by template ', parents[program-index], ' at byte ', offsets[program-index]
+                diagnostic = diagnostic + '; included by template ' + parents[program-index] + ' at byte ' + offsets[program-index]
             fail; diagnostic
         programs.append; program
         for token in program.tokens
@@ -98,7 +98,7 @@ private function generate string;
                 try
                     check-template-name; included-name
                 catch throwable as error
-                    fail; (error.message.concat; '; included by template ', name, ' at byte ', token.offset)
+                    fail; error.message + '; included by template ' + name + ' at byte ' + token.offset
                 if not (contains-name; names, included-name)
                     names.append; included-name
                     parents.append; name

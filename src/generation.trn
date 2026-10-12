@@ -45,7 +45,7 @@ public function generate-template-unit string; output-namespace string, programs
         check-template-name; program.name
         seen = names.get.checked; program.name
         if seen != none
-            throw template-error; ('duplicate template name: ' + program.name)
+            throw template-error; 'duplicate template name: ' + program.name
         names.set; program.name, true
         for token-index in (range; 0, program.tokens.length)
             token = program.tokens[token-index]
@@ -95,6 +95,7 @@ public function generate-template-unit string; output-namespace string, programs
     for program-index in (range; 0, programs.length)
         source = source + '    engine.register-template; ' + (quoted-source; programs[program-index].name) + ', render-template' + program-index + '\n'
     return source + '    return engine\n'
+
 private function atom-uses-context bool; expression string
     expression = expression.trim;
     return not (quoted; expression) and expression != 'true' and expression != 'false' and expression != 'none'
@@ -102,19 +103,20 @@ private function atom-uses-context bool; expression string
 private function range-uses-context bool; program parsed-template, start int, finish int
     for index in (range; start, finish)
         token = program.tokens[index]
-        if token.kind == 'include' or token.kind == 'for'
-            return true
-        if token.kind == 'output'
-            parts = expression-parts; token.text
-            if atom-uses-context; parts[0]
+        switch token.kind
+            case 'include', 'for'
                 return true
-        else if token.kind == 'if'
-            if atom-uses-context; (condition-expression; token.text)
-                return true
-        else if token.kind == 'widget'
-            words = template-words; token.text
-            if words.length == 2 and (atom-uses-context; words[1])
-                return true
+            case 'output'
+                parts = expression-parts; token.text
+                if atom-uses-context; parts[0]
+                    return true
+            case 'if'
+                if atom-uses-context; (condition-expression; token.text)
+                    return true
+            case 'widget'
+                words = template-words; token.text
+                if words.length == 2 and (atom-uses-context; words[1])
+                    return true
     return false
 
 private function loop-boundary int; token template-token
@@ -190,6 +192,7 @@ private function generate-range string; program parsed-template, function-name s
     if top-level
         source = source + '    return output\n'
     return source
+
 private function generated-value string; expression string, context-name string
     expression = expression.trim;
     if expression == 'true' or expression == 'false'
