@@ -11,9 +11,7 @@ private class template-frame
         this.opener = opener
 
 private function template-words list of string; text string
-    text = text.replace; '\t', ' '
-    text = text.replace; '\r', ' '
-    text = text.replace; '\n', ' '
+    text = text.replace; (list; '\t', '\r', '\n'), ' '
     words list of string = list;
     for word in (text.split; ' ')
         if word != ''
@@ -100,50 +98,51 @@ public function parse-template parsed-template; source string, name string = ''
                 if directive.length == 0
                     throw template-error; 'empty template directive', name, cursor
                 word = directive[0]
-                if word == 'if'
-                    kind = 'if'
-                    body = body.trim.start; 'if'
-                    body = body.trim;
-                    if not valid-condition; body
-                        throw template-error; 'invalid if condition', name, cursor
-                else if word == 'for'
-                    kind = 'for'
-                    body = body.trim.start; 'for'
-                    body = body.trim;
-                    parts = template-words; body
-                    if parts.length != 3 or parts[1] != 'in' or not (valid-identifier; parts[0]) or parts[0] == 'loop' or not (valid-path; parts[2])
-                        throw template-error; 'invalid for directive', name, cursor
-                    iterator = parts[0]
-                    body = parts[2]
-                else if word == 'include'
-                    kind = 'include'
-                    body = body.trim.start; 'include'
-                    body = body.trim;
-                    if not valid-quoted-literal; body
-                        throw template-error; 'invalid include directive', name, cursor
-                else if word == 'widget'
-                    kind = 'widget'
-                    body = body.trim.start; 'widget'
-                    body = body.trim;
-                    words = template-words; body
-                    if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
-                        throw template-error; 'invalid widget directive', name, cursor
-                    if words.length == 2 and not (valid-path; words[1])
-                        throw template-error; 'invalid widget argument', name, cursor
-                else if word == 'else'
-                    if body != 'else'
-                        throw template-error; 'invalid else directive', name, cursor
-                    kind = 'else'
-                else if word == 'endif'
-                    if body != 'endif'
-                        throw template-error; 'invalid endif directive', name, cursor
-                    kind = 'endif'
-                else if word == 'endfor'
-                    if body != 'endfor'
-                        throw template-error; 'invalid endfor directive', name, cursor
-                    kind = 'endfor'
-                else
-                    throw template-error; 'unknown template directive', name, cursor
+                switch word
+                    case 'if'
+                        kind = 'if'
+                        body = body.trim.start; 'if'
+                        body = body.trim;
+                        if not valid-condition; body
+                            throw template-error; 'invalid if condition', name, cursor
+                    case 'for'
+                        kind = 'for'
+                        body = body.trim.start; 'for'
+                        body = body.trim;
+                        parts = template-words; body
+                        if parts.length != 3 or parts[1] != 'in' or not (valid-identifier; parts[0]) or parts[0] == 'loop' or not (valid-path; parts[2])
+                            throw template-error; 'invalid for directive', name, cursor
+                        iterator = parts[0]
+                        body = parts[2]
+                    case 'include'
+                        kind = 'include'
+                        body = body.trim.start; 'include'
+                        body = body.trim;
+                        if not valid-quoted-literal; body
+                            throw template-error; 'invalid include directive', name, cursor
+                    case 'widget'
+                        kind = 'widget'
+                        body = body.trim.start; 'widget'
+                        body = body.trim;
+                        words = template-words; body
+                        if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
+                            throw template-error; 'invalid widget directive', name, cursor
+                        if words.length == 2 and not (valid-path; words[1])
+                            throw template-error; 'invalid widget argument', name, cursor
+                    case 'else'
+                        if body != 'else'
+                            throw template-error; 'invalid else directive', name, cursor
+                        kind = 'else'
+                    case 'endif'
+                        if body != 'endif'
+                            throw template-error; 'invalid endif directive', name, cursor
+                        kind = 'endif'
+                    case 'endfor'
+                        if body != 'endfor'
+                            throw template-error; 'invalid endfor directive', name, cursor
+                        kind = 'endfor'
+                    case else
+                        throw template-error; 'unknown template directive', name, cursor
             else if open-byte != 35 and not (valid-expression; body)
                 throw template-error; 'invalid template expression', name, cursor
             token = instance template-token; kind, body, cursor
@@ -151,33 +150,34 @@ public function parse-template parsed-template; source string, name string = ''
                 token.name = iterator
             index = tokens.length
             tokens.append; token
-            if kind == 'if' or kind == 'for'
-                frames.append; (instance template-frame; kind, index)
-            else if kind == 'else'
-                if frames.length == 0
-                    throw template-error; 'unexpected else directive', name, cursor
-                frame = frames[frames.length - 1]
-                if frame.alternate >= 0
-                    throw template-error; 'unexpected or duplicate else directive', name, cursor
-                frame.alternate = index
-                frames.set; frames.length - 1, frame
-                opener = tokens[frame.opener]
-                opener.alternate = index
-                tokens.set; frame.opener, opener
-            else if kind == 'endif' or kind == 'endfor'
-                if frames.length == 0
-                    throw template-error; 'unexpected closing directive', name, cursor
-                frame = frames[frames.length - 1]
-                if (kind == 'endif' and frame.kind != 'if') or (kind == 'endfor' and frame.kind != 'for')
-                    throw template-error; 'mismatched closing directive', name, cursor
-                frames.remove; frames.length - 1
-                opener = tokens[frame.opener]
-                opener.end = index
-                tokens.set; frame.opener, opener
-                if frame.alternate >= 0
-                    alternate-token = tokens[frame.alternate]
-                    alternate-token.end = index
-                    tokens.set; frame.alternate, alternate-token
+            switch kind
+                case 'if', 'for'
+                    frames.append; (instance template-frame; kind, index)
+                case 'else'
+                    if frames.length == 0
+                        throw template-error; 'unexpected else directive', name, cursor
+                    frame = frames[frames.length - 1]
+                    if frame.alternate >= 0
+                        throw template-error; 'unexpected or duplicate else directive', name, cursor
+                    frame.alternate = index
+                    frames.set; frames.length - 1, frame
+                    opener = tokens[frame.opener]
+                    opener.alternate = index
+                    tokens.set; frame.opener, opener
+                case 'endif', 'endfor'
+                    if frames.length == 0
+                        throw template-error; 'unexpected closing directive', name, cursor
+                    frame = frames[frames.length - 1]
+                    if (kind == 'endif' and frame.kind != 'if') or (kind == 'endfor' and frame.kind != 'for')
+                        throw template-error; 'mismatched closing directive', name, cursor
+                    frames.remove; frames.length - 1
+                    opener = tokens[frame.opener]
+                    opener.end = index
+                    tokens.set; frame.opener, opener
+                    if frame.alternate >= 0
+                        alternate-token = tokens[frame.alternate]
+                        alternate-token.end = index
+                        tokens.set; frame.alternate, alternate-token
             cursor = scan + 2
             literal-start = cursor
         else

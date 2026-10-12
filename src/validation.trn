@@ -10,60 +10,61 @@ private function validate-program; program parsed-template
         if token.kind == 'if' or token.kind == 'for'
             if token.end <= token-index or token.end >= tokens.length or token.alternate < -1 or (token.alternate >= 0 and (token.alternate <= token-index or token.alternate >= token.end))
                 throw template-error; 'invalid control indices', program.name, token.offset
-        if token.kind == 'text' or token.kind == 'comment'
-            continue
-        else if token.kind == 'output'
-            if not valid-expression; token.text
-                throw template-error; 'invalid template expression', program.name, token.offset
-        else if token.kind == 'if'
-            if not valid-condition; token.text
-                throw template-error; 'invalid if condition', program.name, token.offset
-            stack.append; token-index
-            alternate-seen.append; false
-        else if token.kind == 'for'
-            if not (valid-identifier; token.name) or token.name == 'loop' or not (valid-path; token.text)
-                throw template-error; 'invalid for directive', program.name, token.offset
-            stack.append; token-index
-            alternate-seen.append; false
-        else if token.kind == 'else'
-            if token.text != 'else' or token.alternate != -1
-                throw template-error; 'invalid else directive', program.name, token.offset
-            if stack.length == 0 or token.end < 0 or token.end >= tokens.length
-                throw template-error; 'unexpected else directive', program.name, token.offset
-            opener-index = stack[stack.length - 1]
-            opener = tokens[opener-index]
-            if alternate-seen[alternate-seen.length - 1] or opener.alternate != token-index or token.end != opener.end
-                throw template-error; 'invalid else structure', program.name, token.offset
-            alternate-seen.set; alternate-seen.length - 1, true
-        else if token.kind == 'endif' or token.kind == 'endfor'
-            if token.text != token.kind or token.end != -1 or token.alternate != -1
-                throw template-error; 'invalid closing directive', program.name, token.offset
-            if stack.length == 0
-                throw template-error; 'unexpected closing directive', program.name, token.offset
-            opener-index = stack[stack.length - 1]
-            opener = tokens[opener-index]
-            expected = 'if'
-            if token.kind == 'endfor'
-                expected = 'for'
-            if opener.kind != expected or opener.end != token-index
-                throw template-error; 'mismatched closing directive', program.name, token.offset
-            if opener.alternate >= 0 and (not alternate-seen[alternate-seen.length - 1] or opener.alternate <= opener-index or opener.alternate >= token-index)
-                throw template-error; 'invalid alternate index', program.name, token.offset
-            if opener.alternate < 0 and alternate-seen[alternate-seen.length - 1]
-                throw template-error; 'invalid alternate structure', program.name, token.offset
-            stack.remove; stack.length - 1
-            alternate-seen.remove; alternate-seen.length - 1
-        else if token.kind == 'include'
-            if not (valid-quoted-literal; token.text)
-                throw template-error; 'invalid include directive', program.name, token.offset
-        else if token.kind == 'widget'
-            words = template-words; token.text
-            if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
-                throw template-error; 'invalid widget directive', program.name, token.offset
-            if words.length == 2 and not (valid-path; words[1])
-                throw template-error; 'invalid widget argument', program.name, token.offset
-        else
-            throw template-error; ('unknown template token kind: '.concat; token.kind), program.name, token.offset
+        switch token.kind
+            case 'text', 'comment'
+                continue
+            case 'output'
+                if not valid-expression; token.text
+                    throw template-error; 'invalid template expression', program.name, token.offset
+            case 'if'
+                if not valid-condition; token.text
+                    throw template-error; 'invalid if condition', program.name, token.offset
+                stack.append; token-index
+                alternate-seen.append; false
+            case 'for'
+                if not (valid-identifier; token.name) or token.name == 'loop' or not (valid-path; token.text)
+                    throw template-error; 'invalid for directive', program.name, token.offset
+                stack.append; token-index
+                alternate-seen.append; false
+            case 'else'
+                if token.text != 'else' or token.alternate != -1
+                    throw template-error; 'invalid else directive', program.name, token.offset
+                if stack.length == 0 or token.end < 0 or token.end >= tokens.length
+                    throw template-error; 'unexpected else directive', program.name, token.offset
+                opener-index = stack[stack.length - 1]
+                opener = tokens[opener-index]
+                if alternate-seen[alternate-seen.length - 1] or opener.alternate != token-index or token.end != opener.end
+                    throw template-error; 'invalid else structure', program.name, token.offset
+                alternate-seen.set; alternate-seen.length - 1, true
+            case 'endif', 'endfor'
+                if token.text != token.kind or token.end != -1 or token.alternate != -1
+                    throw template-error; 'invalid closing directive', program.name, token.offset
+                if stack.length == 0
+                    throw template-error; 'unexpected closing directive', program.name, token.offset
+                opener-index = stack[stack.length - 1]
+                opener = tokens[opener-index]
+                expected = 'if'
+                if token.kind == 'endfor'
+                    expected = 'for'
+                if opener.kind != expected or opener.end != token-index
+                    throw template-error; 'mismatched closing directive', program.name, token.offset
+                if opener.alternate >= 0 and (not alternate-seen[alternate-seen.length - 1] or opener.alternate <= opener-index or opener.alternate >= token-index)
+                    throw template-error; 'invalid alternate index', program.name, token.offset
+                if opener.alternate < 0 and alternate-seen[alternate-seen.length - 1]
+                    throw template-error; 'invalid alternate structure', program.name, token.offset
+                stack.remove; stack.length - 1
+                alternate-seen.remove; alternate-seen.length - 1
+            case 'include'
+                if not (valid-quoted-literal; token.text)
+                    throw template-error; 'invalid include directive', program.name, token.offset
+            case 'widget'
+                words = template-words; token.text
+                if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
+                    throw template-error; 'invalid widget directive', program.name, token.offset
+                if words.length == 2 and not (valid-path; words[1])
+                    throw template-error; 'invalid widget argument', program.name, token.offset
+            case else
+                throw template-error; 'unknown template token kind: ' + token.kind, program.name, token.offset
     if stack.length > 0
         opener = tokens[stack[stack.length - 1]]
         throw template-error; 'unclosed control directive', program.name, opener.offset

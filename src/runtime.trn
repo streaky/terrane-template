@@ -12,29 +12,29 @@ public function template-lookup template-value; context ref (map of string, temp
         return found
     if expression == ''
         expression = name
-    throw template-error; ('undefined variable: '.concat; expression)
+    throw template-error; 'undefined variable: ' + expression
 
 public function template-field template-value; value template-value, name string, expression string
     if value.kind != 'object'
-        throw template-error; ('not an object: '.concat; expression)
+        throw template-error; 'not an object: ' + expression
     found = value.fields.get.checked; name
     if found != none
         return found
-    throw template-error; ('undefined field: '.concat; expression)
+    throw template-error; 'undefined field: ' + expression
 
 public function template-loop-context (map of string, template-value); context map of string, template-value, name string, value template-value, index int, count int
     local-context = context
     local-context.set; name, value
     metadata map of string, template-value = map;
-    metadata.set; 'index', (text-value; (''.concat; index + 1))
-    metadata.set; 'index0', (text-value; (''.concat; index))
+    metadata.set; 'index', (text-value; ((index + 1).to-string;))
+    metadata.set; 'index0', (text-value; (index.to-string;))
     metadata.set; 'first', (bool-value; index == 0)
     metadata.set; 'last', (bool-value; index == count - 1)
     local-context.set; 'loop', (object-value; metadata)
     return local-context
 
 public function format-template-value string; value template-value, autoescape bool, filter string = ''
-    text = value-text; value
+    text = value.to-string;
     escape bool = autoescape
     if filter != ''
         escape = filter == 'escape'

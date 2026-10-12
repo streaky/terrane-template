@@ -67,9 +67,15 @@ engine.set-mode; 'compiled'
 
 Import values and the engine from `/streaky/template`. Use `assign`, `assign-complex`, `append`, and `assigned` for instance-local data; `register-widget` accepts callbacks. `fetch` returns text; `display` prints it with a trailing newline. See `docs/src/manual.yaml` for the complete API and syntax reference.
 
+`template-value.to-string;` returns its raw display text: text unchanged, booleans as
+`true`/`false`, and the empty template value as `''`. String `+`, `.concat;`, `.join;`,
+and `print;` share that representation. Lists, objects, and unknown kinds raise
+`template-error`. Raw display is deliberately separate from HTML escaping; template
+interpolation applies the policy and filters below after conversion.
+
 Both modes follow Jinja's recommended autoescape selection: `.html`, `.htm`, and `.xml` names enable escaping case-insensitively, other files disable it, and string templates enable it by default. `set-autoescape(true|false)` forces a policy, `select-autoescape()` restores filename selection, and `set-string-autoescape` controls the unnamed-template default. Rendering uses the engine's current policy, not a setting frozen at build time.
 
-`|safe` bypasses escaping; `|escape` forces HTML escaping even in dynamic/plain-text templates or when autoescaping is off. HTML escaping replaces `&`, `<`, `>`, `"`, and `'`; it is not JavaScript, CSS, or URL-context escaping. Widgets and includes are inserted verbatim, so a text include inside an HTML page is not escaped by its parent. Widget callbacks must escape untrusted data for their output context.
+`|safe` bypasses escaping; `|escape` forces HTML escaping even in dynamic/plain-text templates or when autoescaping is off. HTML escaping replaces `&`, `<`, `>`, `"`, and `'` in one pass over the original text, without rescanning inserted entities; existing entities are still escaped (`&amp;` becomes `&amp;amp;`). It is not JavaScript, CSS, or URL-context escaping. Widgets and includes are inserted verbatim, so a text include inside an HTML page is not escaped by its parent. Widget callbacks must escape untrusted data for their output context.
 
 ## Safety and limits
 

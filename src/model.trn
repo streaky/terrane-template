@@ -11,9 +11,9 @@ public class template-error implements throwable
             if template-label == ''
                 template-label = '<string>'
             if offset >= 0
-                message = ('template '.concat; template-label, ' at byte ', offset, ': ', message)
+                message = 'template ' + template-label + ' at byte ' + offset + ': ' + message
             else
-                message = ('template '.concat; template-label, ': ', message)
+                message = 'template ' + template-label + ': ' + message
         this.message = message
 
     function render string;
@@ -27,18 +27,33 @@ public class template-value
     items list of template-value
     fields map of string, template-value
 
+    function to-string string;
+        switch this.kind
+            case 'text'
+                return this.text
+            case 'bool'
+                return this.boolean.to-string;
+            case 'none'
+                return ''
+            case 'list', 'object'
+                throw template-error; 'lists and objects cannot be interpolated directly'
+            case else
+                throw template-error; 'unknown template value kind: ' + this.kind
+
     function truthy bool;
-        if this.kind == 'none'
-            return false
-        if this.kind == 'bool'
-            return this.boolean
-        if this.kind == 'text'
-            return this.text != ''
-        if this.kind == 'list'
-            return this.items.length > 0
-        if this.kind == 'object'
-            return this.fields.length > 0
-        throw template-error; ('unknown template value kind: '.concat; this.kind)
+        switch this.kind
+            case 'none'
+                return false
+            case 'bool'
+                return this.boolean
+            case 'text'
+                return this.text != ''
+            case 'list'
+                return this.items.length > 0
+            case 'object'
+                return this.fields.length > 0
+            case else
+                throw template-error; 'unknown template value kind: ' + this.kind
 
 public function text-value template-value; value string
     result = instance template-value;

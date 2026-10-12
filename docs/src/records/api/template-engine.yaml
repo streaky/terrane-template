@@ -109,12 +109,14 @@ documentation:
       markdown: null
     - type: markdown
       markdown: |-
-        `escape-html(text)` returns text with the five HTML-sensitive characters escaped.
+        `escape-html(text)` returns text with the five HTML-sensitive characters escaped
+        in one pass over the original input. Inserted entities are not searched again;
+        existing entity text is escaped normally, so `&amp;` becomes `&amp;amp;`.
         The standalone `template-loader` exposes the same `add-path` search policy and
         `load(name)` for callers that need raw UTF-8 template source rather than rendering.
         Assignment names, widget names, and path segments in expressions use ASCII letters,
         digits, underscores, and hyphens. Numeric values can be supplied as text, for example
-        with Terrane's canonical text conversion through `''.concat; count`.
+        with Terrane's explicit canonical text conversion through `count.to-string;`.
     - type: markdown
       markdown: |-
         Generator-support engine methods remain public: `register-template(name, renderer)`
