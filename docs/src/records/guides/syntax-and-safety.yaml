@@ -1,0 +1,118 @@
+format: 1
+id: template-engine.guide.syntax-and-safety
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Syntax and safety"
+  title-style: text
+  summary: >-
+    Learn the supported template tokens, deliberately limited expressions, and the trust
+    boundaries for templates, values, widgets, and file roots.
+  tags:
+    - "syntax"
+    - "security"
+  blocks:
+    - type: markdown
+      markdown: |-
+        Literal text is copied as-is. `{{ expression }}` interpolates a value. The engine
+        follows Jinja's recommended autoescape selection: `.html`, `.htm`, and `.xml`
+        filenames enable HTML escaping case-insensitively, other filenames disable it,
+        and unnamed/string templates enable it by default. This is the configured selector
+        behavior, not Jinja's unconfigured environment default. Append `|safe` to emit
+        unescaped text or `|escape` to force HTML escaping regardless of the engine policy.
+        Only one filter is accepted. The supported
+        atoms are quoted string literals, `true`, `false`, `none`, and dot-separated variable
+        or object-field paths. Quoted strings have no backslash escapes. Lists and objects
+        cannot be interpolated directly; select a field or iterate a list.
+    - type: example
+      id: supported-template
+      title: "Interpolation and list iteration"
+      language: html
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        <h1>{{ title }}</h1>
+        {% if show %}
+        <ul>
+        {% for person in people %}
+          <li>{{ loop.index }}: {{ person.name }}</li>
+        {% else %}
+          <li>No people</li>
+        {% endfor %}
+        </ul>
+        {% else %}
+        <p>Hidden</p>
+        {% endif %}
+        {% include "footer.html" %}
+        {% widget badge title %}
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        `if` accepts an atom (or `not` plus an atom), with optional `else` and required
+        `endif`. Truthiness is false for empty/none, false booleans, empty text, empty lists,
+        and empty objects; other supported values are true. `for name in path` iterates lists,
+        may have an `else` for an empty list, and ends with `endfor`. Each iteration exposes
+        `loop.index` (one-based), `loop.index0` (zero-based), `loop.first`, and `loop.last`.
+        The iterator and loop metadata are local to the iteration; outer values are not
+        overwritten. Includes require a quoted relative template name and inherit the current
+        values, but select escaping independently by their own filename. Their rendered output
+        is inserted verbatim: a plain-text include inside HTML is not escaped by its parent.
+        Widgets accept a registered name and optional value path.
+    - type: markdown
+      markdown: |-
+        These are not general-purpose expressions: arithmetic, comparisons, calls, compound
+        boolean logic, assignments, template inheritance, and macros are unsupported. Comments
+        use `{# ... #}`. Invalid syntax, undefined variables/fields, wrong value kinds, missing
+        templates, and unregistered widgets raise `template-error`; undefined lookup is not
+        silently converted to empty output.
+    - type: markdown
+      markdown: |-
+        Treat template source and files as trusted code: literal output is emitted unchanged
+        and templates can invoke registered callbacks. Where enabled, HTML escaping protects
+        interpolated values only in appropriate HTML contexts. It is not JavaScript, CSS, or
+        URL escaping and does not make arbitrary placement of data safe. `|safe` is an explicit
+        trust decision. Widget output is inserted verbatim; callbacks must escape untrusted
+        values for their intended output context. Choose included template extensions with
+        the surrounding output context in mind, or explicitly escape values in those templates.
+    - type: markdown
+      markdown: |-
+        File loading requires filesystem capability. Search roots are trusted directories,
+        not a sandbox: symlinks are not separately confined. Choose roots that untrusted users
+        cannot modify. Template names must be relative, non-empty slash-separated components;
+        empty, `.` and `..` components, leading slash, backslash, colon, and NUL are rejected.
+        Newer appended roots win; adding with `push=false` places a root at lower priority.
+        Each loaded file is at most 1 MiB and must be valid UTF-8. Include/control nesting is
+        guarded at 64 levels. There is no automatic render cache; compile once and reuse a
+        `compiled-template` when repeatedly rendering the same source.
+    - type: markdown
+      markdown: |-
+        Spaces, tabs, and newlines separate directive words. Quoted literals may contain a
+        pipe without introducing a filter. Delimiter sequences terminate their token even
+        inside quotes; escaping delimiters, whitespace-control markers, and raw blocks are
+        not supported. A compiled template retains parsed control flow; includes are loaded
+        and compiled on each render. An engine holds its own assignment and widget state;
+        there is no process-global context.
+  sections: []
+  see-also:
+    - template-engine.guide.introduction
+    - template-engine.api.template-engine
+    - template-engine.api.errors-and-compilation
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

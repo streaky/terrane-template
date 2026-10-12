@@ -1,0 +1,218 @@
+namespace template-engine
+from /core/collections import list, range
+
+class template-frame
+    kind string = ''
+    opener int = -1
+    alternate int = -1
+
+    function construct; kind string, opener int
+        this.kind = kind
+        this.opener = opener
+
+function template-words list of string; text string
+    text = text.replace; '\t', ' '
+    text = text.replace; '\r', ' '
+    text = text.replace; '\n', ' '
+    words list of string = list;
+    for word in (text.split; ' ')
+        if word != ''
+            words.append; word
+    return words
+
+function expression-parts list of string; text string
+    data = text.encode; utf8
+    pieces list of string = list;
+    quote int = 0
+    start int = 0
+    index int = 0
+    while index < data.length
+        byte = data[index]
+        if quote == 0 and (byte == 39 or byte == 34)
+            quote = byte
+        else if byte == quote
+            quote = 0
+        else if quote == 0 and byte == 124
+            pieces.append; (data[(range; start, index)].decode; utf8)
+            start = index + 1
+        index = index + 1
+    pieces.append; (data[(range; start, data.length)].decode; utf8)
+    return pieces
+
+public function compile-template compiled-template; source string, name string = ''
+    source-bytes = source.encode; utf8
+    tokens list of template-token = list;
+    frames list of template-frame = list;
+    cursor = 0
+    literal-start = 0
+    while cursor < source-bytes.length
+        if cursor + 1 < source-bytes.length and source-bytes[cursor] == 123 and (source-bytes[cursor + 1] == 123 or source-bytes[cursor + 1] == 37 or source-bytes[cursor + 1] == 35)
+            if literal-start < cursor
+                literal = source-bytes[(range; literal-start, cursor)].decode; utf8
+                tokens.append; (instance template-token; 'text', literal, literal-start)
+            open-byte = source-bytes[cursor + 1]
+            close-byte = 125
+            if open-byte == 37
+                close-byte = 37
+            if open-byte == 35
+                close-byte = 35
+            body-start = cursor + 2
+            scan = body-start
+            while scan + 1 < source-bytes.length and not (source-bytes[scan] == close-byte and source-bytes[scan + 1] == 125)
+                scan = scan + 1
+            if scan + 1 >= source-bytes.length
+                throw template-error; 'Unclosed template delimiter'
+            body = source-bytes[(range; body-start, scan)].decode; utf8
+            body = body.trim;
+            kind = 'output'
+            if open-byte == 35
+                kind = 'comment'
+            iterator = ''
+            if open-byte == 37
+                directive = template-words; body
+                if directive.length == 0
+                    throw template-error; 'Empty template directive'
+                word = directive[0]
+                if word == 'if'
+                    kind = 'if'
+                    body = body.trim.start; 'if'
+                    body = body.trim;
+                    if not valid-condition; body
+                        throw template-error; 'Invalid if condition'
+                else if word == 'for'
+                    kind = 'for'
+                    body = body.trim.start; 'for'
+                    body = body.trim;
+                    parts = template-words; body
+                    if parts.length != 3 or parts[1] != 'in' or not (valid-identifier; parts[0]) or not (valid-path; parts[2])
+                        throw template-error; 'Invalid for directive'
+                    iterator = parts[0]
+                    body = parts[2]
+                else if word == 'include'
+                    kind = 'include'
+                    body = body.trim.start; 'include'
+                    body = body.trim;
+                    if not valid-quoted-literal; body
+                        throw template-error; 'Invalid include directive'
+                else if word == 'widget'
+                    kind = 'widget'
+                    body = body.trim.start; 'widget'
+                    body = body.trim;
+                    words = template-words; body
+                    if words.length == 0 or words.length > 2 or not (valid-identifier; words[0])
+                        throw template-error; 'Invalid widget directive'
+                    if words.length == 2 and not (valid-path; words[1])
+                        throw template-error; 'Invalid widget argument'
+                else if word == 'else'
+                    if body != 'else'
+                        throw template-error; 'Invalid else directive'
+                    kind = 'else'
+                else if word == 'endif'
+                    if body != 'endif'
+                        throw template-error; 'Invalid endif directive'
+                    kind = 'endif'
+                else if word == 'endfor'
+                    if body != 'endfor'
+                        throw template-error; 'Invalid endfor directive'
+                    kind = 'endfor'
+                else
+                    throw template-error; 'Unknown template directive'
+            else if open-byte != 35 and not (valid-expression; body)
+                throw template-error; 'Invalid template expression'
+            token = instance template-token; kind, body, cursor
+            if kind == 'for'
+                token.name = iterator
+            index = tokens.length
+            tokens.append; token
+            if kind == 'if' or kind == 'for'
+                frames.append; (instance template-frame; kind, index)
+            else if kind == 'else'
+                if frames.length == 0
+                    throw template-error; 'Unexpected else directive'
+                frame = frames[frames.length - 1]
+                if frame.alternate >= 0
+                    throw template-error; 'Unexpected or duplicate else directive'
+                frame.alternate = index
+                frames.set; frames.length - 1, frame
+                opener = tokens[frame.opener]
+                opener.alternate = index
+                tokens.set; frame.opener, opener
+            else if kind == 'endif' or kind == 'endfor'
+                if frames.length == 0
+                    throw template-error; 'Unexpected closing directive'
+                frame = frames[frames.length - 1]
+                if (kind == 'endif' and frame.kind != 'if') or (kind == 'endfor' and frame.kind != 'for')
+                    throw template-error; 'Mismatched closing directive'
+                frames.remove; frames.length - 1
+                opener = tokens[frame.opener]
+                opener.end = index
+                tokens.set; frame.opener, opener
+                if frame.alternate >= 0
+                    alternate-token = tokens[frame.alternate]
+                    alternate-token.end = index
+                    tokens.set; frame.alternate, alternate-token
+            cursor = scan + 2
+            literal-start = cursor
+        else
+            cursor = cursor + 1
+    if literal-start < source-bytes.length
+        literal = source-bytes[(range; literal-start, source-bytes.length)].decode; utf8
+        tokens.append; (instance template-token; 'text', literal, literal-start)
+    if frames.length > 0
+        throw template-error; 'Unclosed control directive'
+    return instance compiled-template; tokens, name
+
+private function valid-expression bool; value string
+    parts = expression-parts; value
+    if parts.length < 1 or parts.length > 2
+        return false
+    expression = parts[0].trim;
+    if not ((valid-path; expression) or (valid-quoted-literal; expression) or expression == 'true' or expression == 'false' or expression == 'none')
+        return false
+    if parts.length == 2
+        filter = parts[1].trim;
+        if filter != 'safe' and filter != 'escape'
+            return false
+    return true
+
+private function valid-condition bool; value string
+    if value.contains.start; 'not '
+        value = value.trim.start; 'not '
+        value = value.trim;
+    if (value.contains; '|')
+        return false
+    return valid-expression; value
+
+private function valid-path bool; value string
+    segments = value.split; '.'
+    if segments.length == 0
+        return false
+    for segment in segments
+        if not valid-identifier; segment
+            return false
+    return true
+
+private function valid-identifier bool; value string
+    data = value.encode; utf8
+    if data.length == 0
+        return false
+    index int = 0
+    while index < data.length
+        byte = data[index]
+        if not ((byte >= 97 and byte <= 122) or (byte >= 65 and byte <= 90) or (byte >= 48 and byte <= 57) or byte == 95 or byte == 45)
+            return false
+        index = index + 1
+    return true
+
+private function valid-quoted-literal bool; value string
+    data = value.encode; utf8
+    if data.length < 2
+        return false
+    first = data[0]
+    last = data[data.length - 1]
+    if not ((first == 39 and last == 39) or (first == 34 and last == 34))
+        return false
+    for index in range; 1, data.length - 1
+        if data[index] == first or data[index] == 92
+            return false
+    return true

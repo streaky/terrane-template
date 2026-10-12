@@ -1,0 +1,218 @@
+namespace template-engine
+
+from /core/collections import list, map, range
+from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
+
+function fixture-path string; relative string
+    arguments = test-arguments;
+    if arguments.length != 1 or not arguments[0].is-text
+        fail; 'run tests with --argument pointing to the absolute tests/fixtures directory'
+    return arguments[0].text.concat; '/', relative
+function test-loader-search-order-push-false-and-utf8;
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'low')
+    engine.add-path; (fixture-path; 'high')
+    assert-equal-string; (engine.fetch; 'welcome.html'), 'high\n'
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'high')
+    engine.add-path; (fixture-path; 'low'), false
+    assert-equal-string; (engine.fetch; 'welcome.html'), 'high\n'
+    engine.add-path; (fixture-path; ''), false
+    assert-equal-string; (engine.fetch; 'unicode.txt'), 'café é\n'
+
+function test-loader-rejects-missing-and-invalid-names;
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'low')
+    for name in (list; 'missing.html', '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', 'a\0b', 'C:\\secret')
+        failed bool = false
+        try
+            engine.fetch; name
+        catch template-error
+            failed = true
+        assert-equal-bool; failed, true
+
+function test-includes-inherit-render-context;
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'includes')
+    engine.assign; 'value', (text-value; '<inherited>')
+    assert-equal-string; (engine.render; 'before:{% include "child.html" %}:after'), 'before:child=&lt;inherited&gt;\n:after'
+
+function test-recursive-includes-hit-depth-limit;
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'includes')
+    failed bool = false
+    try
+        engine.fetch; 'recursive.html'
+    catch template-error as error
+        failed = error.message == 'template nesting/include depth exceeds 64'
+    assert-equal-bool; failed, true
+
+function test-output-escapes-html-and-preserves-unicode;
+    engine = instance template-engine;
+    engine.assign; 'value', (text-value; '<&>"\'é combining é')
+    assert-equal-string; (engine.render; '{{ value }}'), '&lt;&amp;&gt;&quot;&#39;é combining é'
+
+function test-safe-and-explicit-escape-filters;
+    engine = instance template-engine;
+    engine.assign; 'value', (text-value; '<b>')
+    assert-equal-string; (engine.render; '{{ value | safe }}'), '<b>'
+    assert-equal-string; (engine.render; '{{ value | escape }}'), '&lt;b&gt;'
+
+function test-comments-are-removed-without-eating-neighboring-text;
+    engine = instance template-engine;
+    assert-equal-string; (engine.render; 'left{# hidden {{ invalid }} #}right'), 'leftright'
+
+function test-invalid-and-unknown-directives-are-rejected;
+    engine = instance template-engine;
+    failed bool = false
+    try
+        engine.render; '{% unknown value %}'
+    catch template-error
+        failed = true
+    assert-equal-bool; failed, true
+
+function test-malformed-unclosed-directive-is-rejected;
+    engine = instance template-engine;
+    failed bool = false
+    try
+        engine.render; '{% if true %}unfinished'
+    catch template-error
+        failed = true
+    assert-equal-bool; failed, true
+
+function test-invalid-expression-in-inactive-branch-is-rejected;
+    engine = instance template-engine;
+    failed bool = false
+    try
+        engine.render; '{% if true %}no{% else %}{{ a..b }}{% endif %}'
+    catch template-error
+        failed = true
+    assert-equal-bool; failed, true
+
+function test-strict-undefined-variable-and-field-errors;
+    engine = instance template-engine;
+    missing bool = false
+    try
+        engine.render; '{{ absent }}'
+    catch template-error
+        missing = true
+    assert-equal-bool; missing, true
+    fields map of string, template-value = map;
+    engine.assign; 'record', (object-value; fields)
+    field-missing bool = false
+    try
+        engine.render; '{{ record.absent }}'
+    catch template-error
+        field-missing = true
+    assert-equal-bool; field-missing, true
+
+function test-boolean-truthiness-not-and-nested-conditionals;
+    engine = instance template-engine;
+    engine.assign; 'yes', (bool-value; true)
+    engine.assign; 'no', (bool-value; false)
+    assert-equal-string; (engine.render; '{% if yes %}A{% if not no %}B{% endif %}{% endif %}{% if not yes %}C{% else %}D{% endif %}'), 'ABD'
+    assert-equal-string; (engine.render; '{% if none %}A{% else %}B{% endif %}'), 'B'
+
+function test-empty-list-selects-else-and-loop-metadata-is-correct;
+    engine = instance template-engine;
+    values list of template-value = list;
+    engine.assign; 'items', (list-value; values)
+    assert-equal-string; (engine.render; '{% for item in items %}x{% else %}empty{% endfor %}'), 'empty'
+    values.append; (text-value; 'a')
+    values.append; (text-value; 'b')
+    engine.assign; 'items', (list-value; values)
+    assert-equal-string; (engine.render; '{% for item in items %}{{ loop.index }}:{{ loop.index0 }}:{{ loop.first }}:{{ loop.last }};{% endfor %}'), '1:0:true:false;2:1:false:true;'
+
+function test-loop-local-values-do-not-leak-to-outer-context;
+    engine = instance template-engine;
+    engine.assign; 'item', (text-value; 'outer')
+    values list of template-value = list;
+    values.append; (text-value; 'inner')
+    engine.assign; 'items', (list-value; values)
+    assert-equal-string; (engine.render; '{% for item in items %}{{ item }}{% endfor %}:{{ item }}'), 'inner:outer'
+
+function test-assignment-append-and-engine-instance-isolation;
+    first = instance template-engine;
+    second = instance template-engine;
+    first.append; 'name', 'A'
+    first.append; 'name', 'B'
+    first.assign; 'other', (text-value; 'x')
+    assert-equal-bool; (first.assigned; 'other'), true
+    assert-equal-bool; (second.assigned; 'name'), false
+    assert-equal-string; (first.render; '{{ name }}'), 'AB'
+
+function test-widget-requires-registration-and-handler-controls-escaping;
+    engine = instance template-engine;
+    failed bool = false
+    try
+        engine.render; '{% widget card value %}'
+    catch template-error
+        failed = true
+    assert-equal-bool; failed, true
+    engine.register-widget; 'card', widget-test-handler
+    engine.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (engine.render; '{% widget card value %}'), '&lt;x&gt;'
+
+function widget-test-handler string; value template-value
+    return escape-html; value.text
+
+function test-compiled-template-renders-against-current-values;
+    engine = instance template-engine;
+    program = compile-template; 'Hello {{ name }}'
+    engine.assign; 'name', (text-value; 'Ada')
+    assert-equal-string; (engine.render-compiled; program), 'Hello Ada'
+    engine.assign; 'name', (text-value; 'Lin')
+    assert-equal-string; (engine.render-compiled; program), 'Hello Lin'
+
+function test-literals-and-flexible-directive-whitespace;
+    engine = instance template-engine;
+    assert-equal-string; (engine.render; 'é é {{ \"a|b\" }} {{ true }} {{ none }}'), 'é é a|b true '
+    assert-equal-string; (engine.render; '{% if\ttrue %}ok{% endif %}'), 'ok'
+    engine.register-widget; 'card', widget-test-handler
+    engine.assign; 'value', (text-value; '<x>')
+    assert-equal-string; (engine.render; '{% widget   card\tvalue %}'), '&lt;x&gt;'
+
+function test-malformed-structure-and-unsupported-expressions;
+    engine = instance template-engine;
+    for source in (list; '{{ missing', '{# comment', '{% else %}', '{% if true %}{% endfor %}', '{% if true %}{% else %}{% else %}{% endif %}', '{{ x | unknown }}', '{{ x + y }}', '{% if false %}{% widget a b c %}{% endif %}')
+        failed bool = false
+        try
+            engine.render; source
+        catch template-error
+            failed = true
+        assert-equal-bool; failed, true
+
+function test-nested-loop-context-restores-outer-loop;
+    engine = instance template-engine;
+    values list of template-value = list;
+    values.append; (text-value; 'a')
+    values.append; (text-value; 'b')
+    engine.assign; 'items', (list-value; values)
+    assert-equal-string; (engine.render; '{% for item in items %}{{ loop.index }}[{% for item in items %}{{ item }}{% endfor %}]{{ item }};{% endfor %}'), '1[ab]a;2[ab]b;'
+
+function test-loader-rejects-invalid-utf8-and-oversize;
+    from /core/filesystem import filesystem-capability, filesystem-write-atomic
+    from /core/filesystem/paths import path
+    authority = filesystem-capability;
+    saved = filesystem-write-atomic; authority, (instance path; 'invalid.html'), b'\xff'
+    assert-equal-bool; saved.failed, false
+    engine = instance template-engine;
+    engine.add-path; '.'
+    invalid bool = false
+    try
+        engine.fetch; 'invalid.html'
+    catch template-error as error
+        invalid = (error.message.contains; 'not valid UTF-8')
+    assert-equal-bool; invalid, true
+    text string = 'x'
+    for index in (range; 0, 20)
+        text = text.concat; text
+    text = text.concat; 'x'
+    saved = filesystem-write-atomic; authority, (instance path; 'oversize.html'), (text.encode; utf8)
+    assert-equal-bool; saved.failed, false
+    oversized bool = false
+    try
+        engine.fetch; 'oversize.html'
+    catch template-error
+        oversized = true
+    assert-equal-bool; oversized, true

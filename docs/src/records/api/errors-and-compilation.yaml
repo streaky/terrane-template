@@ -1,0 +1,70 @@
+format: 1
+id: template-engine.api.errors-and-compilation
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Compilation and errors"
+  title-style: text
+  summary: >-
+    Compile reusable templates and handle the engine's public template-error type.
+  tags:
+    - "api"
+    - "errors"
+    - "compilation"
+  blocks:
+    - type: markdown
+      markdown: |-
+        `compile-template(source, name='')` returns a `compiled-template`; its public `tokens`
+        field contains template tokens and `name` retains the optional template filename.
+        The empty name denotes an unnamed/string template. Supply a filename when compiling
+        file-derived source manually so the engine can select the right escaping policy.
+        `fetch` and includes retain filenames automatically. `render-compiled(program)`
+        renders against the engine's current values and escaping configuration. Reuse the
+        compiled value to avoid repeated parsing; file fetches do not use an automatic cache.
+        Compilation does not resolve context paths, so undefined values and runtime type
+        mismatches can still fail while rendering.
+    - type: example
+      id: compile-and-render
+      title: "Compile source for repeated rendering"
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /template-engine import compile-template, template-engine, text-value
+
+        engine = instance template-engine;
+        engine.assign; 'name', (text-value; 'Ada')
+        program = compile-template; '<p>{{ name }}</p>'
+        first = engine.render-compiled; program
+        second = engine.render-compiled; program
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        `template-error` is the package throwable for template failures. It has a `message`
+        string and renders as that message. It is raised for malformed/unclosed directives,
+        invalid expressions or filters, mismatched control blocks, undefined variables or
+        object fields, invalid runtime value kinds, invalid file names, missing or unreadable
+        templates, invalid UTF-8, files over 1 MiB, and unregistered widgets. The engine does
+        not turn these failures into empty output.
+  sections: []
+  see-also:
+    - template-engine.api.template-engine
+    - template-engine.guide.syntax-and-safety
+
+provenance:
+  specification: null
+  conformance: null

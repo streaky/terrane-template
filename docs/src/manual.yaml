@@ -1,0 +1,22 @@
+format: 1
+publication:
+  id: template-engine
+  kind: reference
+imports: []
+title: Template Engine
+landing: template-engine.guide.introduction
+navigation:
+  - group: Start here
+    numbering: none
+    children:
+      - source: records/guides/introduction.yaml
+  - group: Guides
+    numbering: none
+    children:
+      - source: records/guides/syntax-and-safety.yaml
+  - group: API reference
+    numbering: none
+    children:
+      - source: records/api/values.yaml
+      - source: records/api/template-engine.yaml
+      - source: records/api/errors-and-compilation.yaml

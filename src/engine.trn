@@ -1,0 +1,245 @@
+namespace template-engine
+
+from /core/collections import map, range
+
+public function escape-html string; text string
+    escaped = text.replace; '&', '&amp;'
+    escaped = escaped.replace; '<', '&lt;'
+    escaped = escaped.replace; '>', '&gt;'
+    escaped = escaped.replace; '"', '&quot;'
+    return escaped.replace; '\'', '&#39;'
+
+function quoted bool; text string
+    data = text.encode; utf8
+    if data.length < 2
+        return false
+    return (data[0] == 39 and data[data.length - 1] == 39) or (data[0] == 34 and data[data.length - 1] == 34)
+
+function unquote string; text string
+    data = text.encode; utf8
+    return data[(range; 1, data.length - 1)].decode; utf8
+
+function valid-name bool; name string
+    data = name.encode; utf8
+    if data.length == 0
+        return false
+    index int = 0
+    while index < data.length
+        byte = data[index]
+        if not ((byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or (byte >= 48 and byte <= 57) or byte == 95 or byte == 45)
+            return false
+        index = index + 1
+    return true
+
+function validate-atom; expression string
+    if (quoted; expression) or expression == 'true' or expression == 'false' or expression == 'none'
+        return
+    for part in (expression.split; '.')
+        if not (valid-name; part)
+            throw template-error; ('invalid expression: '.concat; expression)
+
+function resolve-value template-value; expression string, context map of string, template-value
+    expression = expression.trim;
+    validate-atom; expression
+    if quoted; expression
+        return text-value; (unquote; expression)
+    if expression == 'true' or expression == 'false'
+        return bool-value; expression == 'true'
+    if expression == 'none'
+        return empty-value;
+    parts = expression.split; '.'
+    found = context.get.checked; parts[0]
+    current template-value
+    if found != none
+        current = found
+    else
+        throw template-error; ('undefined variable: '.concat; expression)
+    index int = 1
+    while index < parts.length
+        if current.kind != 'object'
+            throw template-error; ('not an object: '.concat; expression)
+        field = current.fields.get.checked; parts[index]
+        if field != none
+            current = field
+        else
+            throw template-error; ('undefined field: '.concat; expression)
+        index = index + 1
+    return current
+
+function value-text string; value template-value
+    if value.kind == 'text'
+        return value.text
+    if value.kind == 'bool'
+        return ''.concat; value.boolean
+    if value.kind == 'none'
+        return ''
+    throw template-error; 'lists and objects cannot be interpolated directly'
+
+function validate-program; program compiled-template
+    for token in program.tokens
+        if token.kind == 'output'
+            parts = expression-parts; token.text
+            if parts.length > 2
+                throw template-error; 'only one output filter is supported'
+            validate-atom; (parts[0].trim;)
+            if parts.length == 2
+                filter = parts[1].trim;
+                if filter != 'safe' and filter != 'escape'
+                    throw template-error; ('unknown filter: '.concat; filter)
+        else if token.kind == 'if'
+            condition = token.text.trim;
+            if condition.contains.start; 'not '
+                condition = condition.trim.start; 'not '
+                condition = condition.trim;
+            validate-atom; condition
+        else if token.kind == 'for'
+            validate-atom; token.text
+        else if token.kind == 'widget'
+            words = template-words; token.text
+            if words.length < 1 or words.length > 2 or not (valid-name; words[0])
+                throw template-error; 'widget requires a name and optional value path'
+            if words.length == 2
+                validate-atom; words[1]
+
+public class template-engine
+    private values map of string, template-value
+    private widgets map of string, function from template-value to string
+    private loader template-loader = instance template-loader;
+    private autoescape bool|none = none
+    private default-for-string bool = true
+
+    mutable function set-autoescape; enabled bool
+        this.autoescape = enabled
+
+    mutable function select-autoescape;
+        this.autoescape = none
+
+    mutable function set-string-autoescape; enabled bool
+        this.default-for-string = enabled
+
+    private function autoescape-for bool; name string
+        override = this.autoescape
+        if override != none
+            return override
+        if name != ''
+            lower-name = name.lower;
+            return (lower-name.contains.end; '.html') or (lower-name.contains.end; '.htm') or (lower-name.contains.end; '.xml')
+        return this.default-for-string
+
+
+    mutable function assign; name string, value template-value
+        if not (valid-name; name)
+            throw template-error; 'assignment requires a simple variable name'
+        this.values.set; name, value
+
+    mutable function assign-complex; name string, fields map of string, template-value
+        this.assign; name, (object-value; fields)
+
+    function assigned bool; name string
+        return (this.values.get.checked; name) != none
+
+    mutable function append; name string, text string
+        previous = this.values.get.checked; name
+        if previous != none
+            if previous.kind != 'text'
+                throw template-error; 'append requires a text value'
+            this.assign; name, (text-value; (previous.text.concat; text))
+        else
+            this.assign; name, (text-value; text)
+
+    mutable function add-path; directory string, push bool = true
+        this.loader.add-path; directory, push
+
+    mutable function register-widget; name string, handler function from template-value to string
+        if not (valid-name; name)
+            throw template-error; 'widget requires a simple name'
+        this.widgets.set; name, handler
+
+    function render string; source string
+        return this.render-compiled; (compile-template; source)
+
+    function render-compiled string; program compiled-template
+        validate-program; program
+        return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name)
+
+    function fetch string; name string
+        return this.render-compiled; (compile-template; (this.loader.load; name), name)
+
+    function display; name string
+        print; (this.fetch; name)
+
+    private function render-range string; program compiled-template, context map of string, template-value, start int, finish int, depth int, autoescape bool
+        if depth >= 64
+            throw template-error; 'template nesting/include depth exceeds 64'
+        output string = ''
+        cursor int = start
+        while cursor < finish
+            token = program.tokens[cursor]
+            if token.kind == 'text'
+                output = output.concat; token.text
+            else if token.kind == 'output'
+                parts = expression-parts; token.text
+                text = value-text; (resolve-value; parts[0], context)
+                escape bool = autoescape
+                if parts.length == 2
+                    escape = (parts[1].trim;) == 'escape'
+                if escape
+                    text = escape-html; text
+                output = output.concat; text
+            else if token.kind == 'if'
+                condition = token.text.trim;
+                negate bool = condition.contains.start; 'not '
+                if negate
+                    condition = condition.trim.start; 'not '
+                test = resolve-value; condition, context
+                selected bool = test.truthy;
+                if negate
+                    selected = not selected
+                boundary int = token.end
+                if token.alternate >= 0
+                    boundary = token.alternate
+                if selected
+                    output = output.concat; (this.render-range; program, context, cursor + 1, boundary, depth + 1, autoescape)
+                else if token.alternate >= 0
+                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape)
+                cursor = token.end
+            else if token.kind == 'for'
+                sequence = resolve-value; token.text, context
+                if sequence.kind != 'list'
+                    throw template-error; 'for requires a list value'
+                boundary int = token.end
+                if token.alternate >= 0
+                    boundary = token.alternate
+                index int = 0
+                while index < sequence.items.length
+                    local-context = context
+                    local-context.set; token.name, sequence.items[index]
+                    metadata map of string, template-value = map;
+                    metadata.set; 'index', (text-value; (''.concat; index + 1))
+                    metadata.set; 'index0', (text-value; (''.concat; index))
+                    metadata.set; 'first', (bool-value; index == 0)
+                    metadata.set; 'last', (bool-value; index == sequence.items.length - 1)
+                    local-context.set; 'loop', (object-value; metadata)
+                    output = output.concat; (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape)
+                    index = index + 1
+                if sequence.items.length == 0 and token.alternate >= 0
+                    output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape)
+                cursor = token.end
+            else if token.kind == 'include'
+                included-name = unquote; token.text
+                included = compile-template; (this.loader.load; included-name), included-name
+                validate-program; included
+                output = output.concat; (this.render-range; included, context, 0, included.tokens.length, depth + 1, (this.autoescape-for; included.name))
+            else if token.kind == 'widget'
+                words = template-words; token.text
+                available = this.widgets.get.checked; words[0]
+                if available != none
+                    handler = this.widgets[words[0]]
+                    argument = empty-value;
+                    if words.length == 2
+                        argument = resolve-value; words[1], context
+                    output = output.concat; (handler; argument)
+                else
+                    throw template-error; ('unregistered widget: '.concat; words[0])
+            cursor = cursor + 1
+        return output

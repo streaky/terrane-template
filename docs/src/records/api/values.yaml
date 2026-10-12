@@ -1,0 +1,71 @@
+format: 1
+id: template-engine.api.values
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Values"
+  title-style: text
+  summary: >-
+    Construct explicit template values and understand their fields and truthiness behavior.
+  tags:
+    - "api"
+    - "values"
+  blocks:
+    - type: markdown
+      markdown: |-
+        Import `template-value`, `text-value`, `bool-value`, `list-value`, `object-value`,
+        and `empty-value` from `/template-engine`. `template-value` has `kind`, `text`,
+        `boolean`, `items`, and `fields`; unused fields retain their defaults. Lists contain
+        `template-value` items and objects map strings to `template-value`. Construct values
+        with the factories rather than relying on implicit host-object conversion.
+    - type: example
+      id: construct-context-values
+      title: "Constructing a template context"
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /core/collections import list, map
+        from /template-engine import template-value, text-value, bool-value, list-value, object-value, empty-value
+
+        fields map of string, template-value = map;
+        fields.set; 'name', (text-value; 'Ada')
+        person template-value = object-value; fields
+
+        people list of template-value = list;
+        people.append; person
+        roster template-value = list-value; people
+        enabled template-value = bool-value; true
+        missing template-value = empty-value;
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        `truthy` returns false for the empty value, false booleans, empty text, empty lists,
+        and empty objects; it returns the boolean's value for booleans and true for non-empty
+        text, lists, and objects. Direct interpolation renders text and booleans as text and
+        renders the empty value as an empty string. A list or object cannot be interpolated
+        directly. Dot-separated paths resolve object fields only; a missing root or field is
+        an error.
+  sections: []
+  see-also:
+    - template-engine.api.template-engine
+    - template-engine.guide.syntax-and-safety
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

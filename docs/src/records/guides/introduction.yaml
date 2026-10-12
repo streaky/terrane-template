@@ -1,0 +1,79 @@
+format: 1
+id: template-engine.guide.introduction
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Template engine"
+  title-style: text
+  summary: >-
+    Render trusted, file-backed templates with explicit values using a compact engine
+    implemented in Terrane.
+  tags:
+    - "template-engine"
+    - "templates"
+  blocks:
+    - type: markdown
+      markdown: |-
+        `template-engine` provides explicit text, boolean, list, object, and empty values;
+        strict interpolation; conditionals; list iteration; includes; and registered widgets.
+        It is pure Terrane and has no native Rust package dependencies. It deliberately does
+        not implement full Jinja syntax, expressions, inheritance, macros, or automatic
+        reflection over host objects.
+    - type: markdown
+      markdown: |-
+        Add the package and its filesystem effect to the consumer manifest. The sibling
+        path below is illustrative and should be adjusted for the consuming package.
+    - type: example
+      id: dependency-and-profile
+      title: "Dependency and filesystem capability"
+      language: toml
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        [terrane-dependencies]
+        template-engine = { path = "../template-engine" }
+
+        [profile]
+        capabilities = ["filesystem"]
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        Run the included demo from `packages/template-engine/demo`: invoke
+        `../../../target/debug/terrane run .` for a repository-built binary, or `terrane run .` when the
+        compiler is installed. It uses `templates/page.html` and demonstrates object/list
+        assignment, escaping, includes, and a widget.
+  sections:
+    - id: start-here
+      title: "Start here"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Read [[template-engine.guide.syntax-and-safety]] for supported syntax and trust
+            boundaries, then consult [[template-engine.api.values]],
+            [[template-engine.api.template-engine]], and
+            [[template-engine.api.errors-and-compilation]] for public types and operations.
+      sections: []
+  see-also:
+    - template-engine.guide.syntax-and-safety
+    - template-engine.api.values
+    - template-engine.api.template-engine
+    - template-engine.api.errors-and-compilation
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

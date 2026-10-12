@@ -1,0 +1,12 @@
+package = "template-engine"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+template-engine = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[testing]
+unit = "tests/unit"

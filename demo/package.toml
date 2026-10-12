@@ -1,0 +1,12 @@
+package = "template-demo"
+artifact = "executable"
+rust-toolchain = "pinned"
+
+[namespaces]
+template-demo = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[terrane-dependencies]
+template-engine = { path = ".." }
