@@ -1,0 +1,14 @@
+namespace template-compiled-tests
+
+from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html
+from /generated/template/compiled-tests import make-template-engine
+from /core/collections import map, list
+
+function badge string; value template-value
+    return '<strong>'.concat; (escape-html; value.text), '</strong>'
+
+function main;
+    engine = make-template-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    output = engine.fetch; 'basic.html'
+    print; output

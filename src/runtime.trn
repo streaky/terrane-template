@@ -1,0 +1,43 @@
+namespace streaky/template
+
+from /core/collections import map
+
+public function check-template-depth; depth int
+    if depth >= 64
+        throw template-error; 'template nesting/include depth exceeds 64'
+
+public function template-lookup template-value; context ref (map of string, template-value), name string, expression string = ''
+    found = context.get.checked; name
+    if found != none
+        return found
+    if expression == ''
+        expression = name
+    throw template-error; ('undefined variable: '.concat; expression)
+
+public function template-field template-value; value template-value, name string, expression string
+    if value.kind != 'object'
+        throw template-error; ('not an object: '.concat; expression)
+    found = value.fields.get.checked; name
+    if found != none
+        return found
+    throw template-error; ('undefined field: '.concat; expression)
+
+public function template-loop-context (map of string, template-value); context map of string, template-value, name string, value template-value, index int, count int
+    local-context = context
+    local-context.set; name, value
+    metadata map of string, template-value = map;
+    metadata.set; 'index', (text-value; (''.concat; index + 1))
+    metadata.set; 'index0', (text-value; (''.concat; index))
+    metadata.set; 'first', (bool-value; index == 0)
+    metadata.set; 'last', (bool-value; index == count - 1)
+    local-context.set; 'loop', (object-value; metadata)
+    return local-context
+
+public function format-template-value string; value template-value, autoescape bool, filter string = ''
+    text = value-text; value
+    escape bool = autoescape
+    if filter != ''
+        escape = filter == 'escape'
+    if escape
+        text = escape-html; text
+    return text

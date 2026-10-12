@@ -12,13 +12,13 @@ function test-loader-search-order-push-false-and-utf8;
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'low')
     engine.add-path; (fixture-path; 'high')
-    assert-equal-string; (engine.fetch; 'welcome.html'), 'high\n'
+    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), 'high\n'
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'high')
     engine.add-path; (fixture-path; 'low'), false
-    assert-equal-string; (engine.fetch; 'welcome.html'), 'high\n'
+    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), 'high\n'
     engine.add-path; (fixture-path; ''), false
-    assert-equal-string; (engine.fetch; 'unicode.txt'), 'café é\n'
+    assert-equal-string; (engine.fetch; 'unicode.txt', 'dynamic'), 'café é\n'
 
 function test-loader-rejects-missing-and-invalid-names;
     engine = instance template-engine;
@@ -26,7 +26,7 @@ function test-loader-rejects-missing-and-invalid-names;
     for name in (list; 'missing.html', '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', 'a\0b', 'C:\\secret')
         failed bool = false
         try
-            engine.fetch; name
+            engine.fetch; name, 'dynamic'
         catch template-error
             failed = true
         assert-equal-bool; failed, true
@@ -42,7 +42,7 @@ function test-recursive-includes-hit-depth-limit;
     engine.add-path; (fixture-path; 'includes')
     failed bool = false
     try
-        engine.fetch; 'recursive.html'
+        engine.fetch; 'recursive.html', 'dynamic'
     catch template-error as error
         failed = error.message == 'template nesting/include depth exceeds 64'
     assert-equal-bool; failed, true
@@ -156,13 +156,13 @@ function test-widget-requires-registration-and-handler-controls-escaping;
 function widget-test-handler string; value template-value
     return escape-html; value.text
 
-function test-compiled-template-renders-against-current-values;
+function test-parsed-template-renders-against-current-values;
     engine = instance template-engine;
-    program = compile-template; 'Hello {{ name }}'
+    program = parse-template; 'Hello {{ name }}'
     engine.assign; 'name', (text-value; 'Ada')
-    assert-equal-string; (engine.render-compiled; program), 'Hello Ada'
+    assert-equal-string; (engine.render-parsed; program), 'Hello Ada'
     engine.assign; 'name', (text-value; 'Lin')
-    assert-equal-string; (engine.render-compiled; program), 'Hello Lin'
+    assert-equal-string; (engine.render-parsed; program), 'Hello Lin'
 
 function test-literals-and-flexible-directive-whitespace;
     engine = instance template-engine;
@@ -200,7 +200,7 @@ function test-loader-rejects-invalid-utf8-and-oversize;
     engine.add-path; '.'
     invalid bool = false
     try
-        engine.fetch; 'invalid.html'
+        engine.fetch; 'invalid.html', 'dynamic'
     catch template-error as error
         invalid = (error.message.contains; 'not valid UTF-8')
     assert-equal-bool; invalid, true
@@ -212,7 +212,7 @@ function test-loader-rejects-invalid-utf8-and-oversize;
     assert-equal-bool; saved.failed, false
     oversized bool = false
     try
-        engine.fetch; 'oversize.html'
+        engine.fetch; 'oversize.html', 'dynamic'
     catch template-error
         oversized = true
     assert-equal-bool; oversized, true

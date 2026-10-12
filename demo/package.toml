@@ -10,3 +10,8 @@ capabilities = ["filesystem"]
 
 [terrane-dependencies]
 template = { path = ".." }
+
+[consumers.template]
+command = "../.trn/consumers/template"
+args = ["--namespace", "generated/template/template-demo", "--root", "templates", "--template", "page.html"]
+declarations = ["/template-demo::main"]

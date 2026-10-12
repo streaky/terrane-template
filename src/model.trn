@@ -71,7 +71,7 @@ public class template-token
         this.text = text
         this.offset = offset
 
-public class compiled-template
+public class parsed-template
     tokens list of template-token
     name string = ''
 

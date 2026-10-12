@@ -47,7 +47,7 @@ documentation:
         engine.assign; 'title', (text-value; 'A page')
         engine.add-path; 'templates'
         engine.register-widget; 'badge', badge
-        html = engine.fetch; 'page.html'
+        html = engine.fetch; 'page.html', 'dynamic'
         rendered = engine.render; '<p>{{ title }}</p>'
       response: null
       diagnostic: null
@@ -61,23 +61,31 @@ documentation:
 
         `add-path(directory, push=true)` registers a non-empty search directory. With the
         default `push=true`, it appends to the search list; lookup searches from newest to
-        oldest. `push=false` prepends a lower-priority directory. `render(source)` compiles
-        and renders source using assigned values. `fetch(name)` loads a named file and renders
-        it, returning the resulting string. `display(name)` fetches and prints it, adding a
-        newline. `render-compiled(program)` renders a previously compiled template. Mutable
-        engine methods are marked `mutable` in Terrane; call headers and invocation syntax
-        require semicolons.
+        oldest. `push=false` prepends a lower-priority directory. `render(source)` always
+        parses and renders the source dynamically. Every engine defaults to compiled
+        fetching; use the generated `make-template-engine` factory to populate its inventory.
+        A directly constructed engine has no compiled renderers until they are registered.
+        `fetch(name, mode='default')` renders a named template; `display` uses the same
+        options and prints with an extra newline. `set-mode('compiled'|'dynamic')` changes
+        the default. Both fetching APIs accept per-call `default`, `compiled`, or `dynamic`;
+        `default` inherits the engine mode. Overrides are not sticky, and includes follow
+        the selected mode. Runtime-only templates require dynamic mode; compiled lookup
+        never falls back to disk. Runtime search-path changes affect only dynamic loading.
+        Mutable engine methods are marked
+        `mutable` in Terrane; call headers and invocation syntax require semicolons.
     - type: markdown
       markdown: |-
         A new engine selects autoescaping from the template name: `.html`, `.htm`, and `.xml`
         enable it case-insensitively; other file names disable it. Unnamed templates from
-        `render` or `compile-template` enable it by default. `set-autoescape(enabled)` forces
+        `render` or `parse-template` enable it by default. `set-autoescape(enabled)` forces
         one boolean policy for files, strings, and includes. `select-autoescape()` removes
         that override and restores filename selection. `set-string-autoescape(enabled)`
         changes the unnamed-template default; it affects neither named files nor an active
-        forced policy. All three configuration methods are mutable. Compiled templates
-        retain their name, not a frozen escaping mode, so rendering uses the engine's current
-        configuration.
+        forced policy. All three configuration methods are mutable. Parsed templates retain
+        their name, not a frozen escaping mode, so rendering uses the engine's current
+        configuration. AOT rendering also uses the engine's current escaping settings and
+        each template's own filename policy; explicit `escape` and `safe` filters override
+        the automatic policy.
     - type: example
       id: escaping-policy
       title: Configure escaping

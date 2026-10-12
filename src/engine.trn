@@ -1,6 +1,7 @@
 namespace streaky/template
 
 from /core/collections import map, range
+from /core/errors import throwable
 
 public function escape-html string; text string
     escaped = text.replace; '&', '&amp;'
@@ -38,7 +39,7 @@ function validate-atom; expression string
         if not (valid-name; part)
             throw template-error; ('invalid expression: '.concat; expression)
 
-function resolve-value template-value; expression string, context map of string, template-value
+function resolve-value template-value; expression string, context ref (map of string, template-value)
     expression = expression.trim;
     validate-atom; expression
     if quoted; expression
@@ -48,21 +49,10 @@ function resolve-value template-value; expression string, context map of string,
     if expression == 'none'
         return empty-value;
     parts = expression.split; '.'
-    found = context.get.checked; parts[0]
-    current template-value
-    if found != none
-        current = found
-    else
-        throw template-error; ('undefined variable: '.concat; expression)
+    current = template-lookup; context, parts[0], expression
     index int = 1
     while index < parts.length
-        if current.kind != 'object'
-            throw template-error; ('not an object: '.concat; expression)
-        field = current.fields.get.checked; parts[index]
-        if field != none
-            current = field
-        else
-            throw template-error; ('undefined field: '.concat; expression)
+        current = template-field; current, parts[index], expression
         index = index + 1
     return current
 
@@ -75,7 +65,7 @@ function value-text string; value template-value
         return ''
     throw template-error; 'lists and objects cannot be interpolated directly'
 
-function validate-program; program compiled-template
+function validate-program; program parsed-template
     for token in program.tokens
         if token.kind == 'output'
             parts = expression-parts; token.text
@@ -107,6 +97,18 @@ public class template-engine
     private loader template-loader = instance template-loader;
     private autoescape bool|none = none
     private default-for-string bool = true
+    private mode string = 'compiled'
+    private templates map of string, function from (ref template-engine), (map of string, template-value), int to string throws throwable
+
+    mutable function set-mode; mode string
+        if mode != 'compiled' and mode != 'dynamic'
+            throw template-error; 'template mode must be compiled or dynamic'
+        this.mode = mode
+
+    mutable function register-template; name string, renderer function from (ref template-engine), (map of string, template-value), int to string throws throwable
+        check-template-name; name
+        this.templates.set; name, renderer
+
 
     mutable function set-autoescape; enabled bool
         this.autoescape = enabled
@@ -117,7 +119,7 @@ public class template-engine
     mutable function set-string-autoescape; enabled bool
         this.default-for-string = enabled
 
-    private function autoescape-for bool; name string
+    function autoescape-for bool; name string
         override = this.autoescape
         if override != none
             return override
@@ -156,21 +158,44 @@ public class template-engine
         this.widgets.set; name, handler
 
     function render string; source string
-        return this.render-compiled; (compile-template; source)
+        return this.render-parsed; (parse-template; source)
 
-    function render-compiled string; program compiled-template
+    function render-parsed string; program parsed-template
         validate-program; program
         return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name)
 
-    function fetch string; name string
-        return this.render-compiled; (compile-template; (this.loader.load; name), name)
+    function fetch string; name string, mode string = 'default'
+        return this.fetch-context; name, this.values, 0, mode
 
-    function display; name string
-        print; (this.fetch; name)
+    function fetch-context string; name string, context map of string, template-value, depth int, mode string = 'default'
+        check-template-name; name
+        check-template-depth; depth
+        if mode == 'default'
+            mode = this.mode
+        if mode == 'dynamic'
+            program = parse-template; (this.loader.load; name), name
+            validate-program; program
+            return this.render-range; program, context, 0, program.tokens.length, depth, (this.autoescape-for; name)
+        if mode != 'compiled'
+            throw template-error; 'template mode must be default, compiled or dynamic'
+        available = this.templates.get.checked; name
+        if available != none
+            renderer = this.templates[name]
+            return renderer; ref this, context, depth
+        throw template-error; ('template not available at build time: '.concat; name, '; use dynamic mode for runtime files')
 
-    private function render-range string; program compiled-template, context map of string, template-value, start int, finish int, depth int, autoescape bool
-        if depth >= 64
-            throw template-error; 'template nesting/include depth exceeds 64'
+    function render-widget string; name string, argument template-value
+        available = this.widgets.get.checked; name
+        if available != none
+            handler = this.widgets[name]
+            return handler; argument
+        throw template-error; ('unregistered widget: '.concat; name)
+
+    function display; name string, mode string = 'default'
+        print; (this.fetch; name, mode)
+
+    private function render-range string; program parsed-template, context map of string, template-value, start int, finish int, depth int, autoescape bool
+        check-template-depth; depth
         output string = ''
         cursor int = start
         while cursor < finish
@@ -179,19 +204,16 @@ public class template-engine
                 output = output.concat; token.text
             else if token.kind == 'output'
                 parts = expression-parts; token.text
-                text = value-text; (resolve-value; parts[0], context)
-                escape bool = autoescape
+                filter string = ''
                 if parts.length == 2
-                    escape = (parts[1].trim;) == 'escape'
-                if escape
-                    text = escape-html; text
-                output = output.concat; text
+                    filter = parts[1].trim;
+                output = output.concat; (format-template-value; (resolve-value; parts[0], ref context), autoescape, filter)
             else if token.kind == 'if'
                 condition = token.text.trim;
                 negate bool = condition.contains.start; 'not '
                 if negate
                     condition = condition.trim.start; 'not '
-                test = resolve-value; condition, context
+                test = resolve-value; condition, ref context
                 selected bool = test.truthy;
                 if negate
                     selected = not selected
@@ -204,7 +226,7 @@ public class template-engine
                     output = output.concat; (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape)
                 cursor = token.end
             else if token.kind == 'for'
-                sequence = resolve-value; token.text, context
+                sequence = resolve-value; token.text, ref context
                 if sequence.kind != 'list'
                     throw template-error; 'for requires a list value'
                 boundary int = token.end
@@ -212,14 +234,7 @@ public class template-engine
                     boundary = token.alternate
                 index int = 0
                 while index < sequence.items.length
-                    local-context = context
-                    local-context.set; token.name, sequence.items[index]
-                    metadata map of string, template-value = map;
-                    metadata.set; 'index', (text-value; (''.concat; index + 1))
-                    metadata.set; 'index0', (text-value; (''.concat; index))
-                    metadata.set; 'first', (bool-value; index == 0)
-                    metadata.set; 'last', (bool-value; index == sequence.items.length - 1)
-                    local-context.set; 'loop', (object-value; metadata)
+                    local-context = template-loop-context; context, token.name, sequence.items[index], index, sequence.items.length
                     output = output.concat; (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape)
                     index = index + 1
                 if sequence.items.length == 0 and token.alternate >= 0
@@ -227,19 +242,12 @@ public class template-engine
                 cursor = token.end
             else if token.kind == 'include'
                 included-name = unquote; token.text
-                included = compile-template; (this.loader.load; included-name), included-name
-                validate-program; included
-                output = output.concat; (this.render-range; included, context, 0, included.tokens.length, depth + 1, (this.autoescape-for; included.name))
+                output = output.concat; (this.fetch-context; included-name, context, depth + 1, 'dynamic')
             else if token.kind == 'widget'
                 words = template-words; token.text
-                available = this.widgets.get.checked; words[0]
-                if available != none
-                    handler = this.widgets[words[0]]
-                    argument = empty-value;
-                    if words.length == 2
-                        argument = resolve-value; words[1], context
-                    output = output.concat; (handler; argument)
-                else
-                    throw template-error; ('unregistered widget: '.concat; words[0])
+                argument = empty-value;
+                if words.length == 2
+                    argument = resolve-value; words[1], ref context
+                output = output.concat; (this.render-widget; words[0], argument)
             cursor = cursor + 1
         return output

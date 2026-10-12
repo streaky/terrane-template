@@ -15,7 +15,7 @@ function test-autoescape-selects-html-htm-xml-case-insensitively;
     engine.assign; 'value', (text-value; '<&>')
     for name in (list; 'page.html', 'page.htm', 'page.xml', 'page.HTML', 'page.HtM', 'page.XML')
         write-policy-template; name, '{{ value }}'
-        assert-equal-string; (engine.fetch; name), '&lt;&amp;&gt;'
+        assert-equal-string; (engine.fetch; name, 'dynamic'), '&lt;&amp;&gt;'
 
 function test-other-file-types-are-raw-and-escape-filter-still-works;
     engine = instance template-engine;
@@ -23,7 +23,7 @@ function test-other-file-types-are-raw-and-escape-filter-still-works;
     engine.assign; 'value', (text-value; '<&>')
     for name in (list; 'page.txt', 'page.conf', 'page', 'page.html.txt')
         write-policy-template; name, '{{ value }}|{{ value | escape }}|{{ value | safe }}'
-        assert-equal-string; (engine.fetch; name), '<&>|&lt;&amp;&gt;|<&>'
+        assert-equal-string; (engine.fetch; name, 'dynamic'), '<&>|&lt;&amp;&gt;|<&>'
 
 function test-string-autoescape-default-is-separately-configurable;
     escaped = instance template-engine;
@@ -35,7 +35,7 @@ function test-string-autoescape-default-is-separately-configurable;
     assert-equal-string; (raw.render; '{{ value }}|{{ value | escape }}'), '<x>|&lt;x&gt;'
     write-policy-template; 'page.html', '{{ value }}'
     raw.add-path; '.'
-    assert-equal-string; (raw.fetch; 'page.html'), '&lt;x&gt;'
+    assert-equal-string; (raw.fetch; 'page.html', 'dynamic'), '&lt;x&gt;'
 
 function test-explicit-autoescape-overrides-file-and-string-selection;
     write-policy-template; 'page.html', '{{ value }}|{{ value | escape }}|{{ value | safe }}'
@@ -50,29 +50,29 @@ function test-explicit-autoescape-overrides-file-and-string-selection;
     escaped.assign; 'value', (text-value; '<x>')
     raw.assign; 'value', (text-value; '<x>')
     for name in (list; 'page.html', 'page.txt')
-        assert-equal-string; (escaped.fetch; name), '&lt;x&gt;|&lt;x&gt;|<x>'
-        assert-equal-string; (raw.fetch; name), '<x>|&lt;x&gt;|<x>'
+        assert-equal-string; (escaped.fetch; name, 'dynamic'), '&lt;x&gt;|&lt;x&gt;|<x>'
+        assert-equal-string; (raw.fetch; name, 'dynamic'), '<x>|&lt;x&gt;|<x>'
     assert-equal-string; (escaped.render; '{{ value }}'), '&lt;x&gt;'
     assert-equal-string; (raw.render; '{{ value }}'), '<x>'
     raw.select-autoescape;
-    assert-equal-string; (raw.fetch; 'page.html'), '&lt;x&gt;|&lt;x&gt;|<x>'
-    assert-equal-string; (raw.fetch; 'page.txt'), '<x>|&lt;x&gt;|<x>'
+    assert-equal-string; (raw.fetch; 'page.html', 'dynamic'), '&lt;x&gt;|&lt;x&gt;|<x>'
+    assert-equal-string; (raw.fetch; 'page.txt', 'dynamic'), '<x>|&lt;x&gt;|<x>'
 
-function test-compiled-templates-retain-name-but-not-engine-policy;
-    html = compile-template; '{{ value }}', 'page.HTML'
-    text = compile-template; '{{ value }}', 'page.txt'
-    unnamed = compile-template; '{{ value }}'
+function test-parsed-templates-retain-name-but-not-engine-policy;
+    html = parse-template; '{{ value }}', 'page.HTML'
+    text = parse-template; '{{ value }}', 'page.txt'
+    unnamed = parse-template; '{{ value }}'
     selected = instance template-engine;
     raw = instance template-engine;
     raw.set-autoescape; false
     selected.assign; 'value', (text-value; '<x>')
     raw.assign; 'value', (text-value; '<x>')
-    assert-equal-string; (selected.render-compiled; html), '&lt;x&gt;'
-    assert-equal-string; (selected.render-compiled; text), '<x>'
-    assert-equal-string; (selected.render-compiled; unnamed), '&lt;x&gt;'
-    assert-equal-string; (raw.render-compiled; html), '<x>'
+    assert-equal-string; (selected.render-parsed; html), '&lt;x&gt;'
+    assert-equal-string; (selected.render-parsed; text), '<x>'
+    assert-equal-string; (selected.render-parsed; unnamed), '&lt;x&gt;'
+    assert-equal-string; (raw.render-parsed; html), '<x>'
     selected.assign; 'value', (text-value; '<y>')
-    assert-equal-string; (selected.render-compiled; html), '&lt;y&gt;'
+    assert-equal-string; (selected.render-parsed; html), '&lt;y&gt;'
 
 function test-includes-use-own-filename-and-restore-parent-policy;
     write-policy-template; 'child.txt', 'T{{ value }}'
@@ -82,13 +82,13 @@ function test-includes-use-own-filename-and-restore-parent-policy;
     engine = instance template-engine;
     engine.add-path; '.'
     engine.assign; 'value', (text-value; '<x>')
-    assert-equal-string; (engine.fetch; 'parent.html'), '&lt;x&gt;:T<x>:&lt;x&gt;'
-    assert-equal-string; (engine.fetch; 'parent.txt'), '<x>:H&lt;x&gt;:<x>'
+    assert-equal-string; (engine.fetch; 'parent.html', 'dynamic'), '&lt;x&gt;:T<x>:&lt;x&gt;'
+    assert-equal-string; (engine.fetch; 'parent.txt', 'dynamic'), '<x>:H&lt;x&gt;:<x>'
     raw = instance template-engine;
     raw.set-autoescape; false
     raw.add-path; '.'
     raw.assign; 'value', (text-value; '<x>')
-    assert-equal-string; (raw.fetch; 'parent.txt'), '<x>:H<x>:<x>'
+    assert-equal-string; (raw.fetch; 'parent.txt', 'dynamic'), '<x>:H<x>:<x>'
 
 function test-selected-policy-propagates-through-conditions-and-loops;
     source string = '{% if true %}{% for item in items %}{{ item }}{% else %}empty{% endfor %}{% endif %}'
@@ -96,5 +96,5 @@ function test-selected-policy-propagates-through-conditions-and-loops;
     values.append; (text-value; '<x>')
     engine = instance template-engine;
     engine.assign; 'items', (list-value; values)
-    assert-equal-string; (engine.render-compiled; (compile-template; source, 'page.html')), '&lt;x&gt;'
-    assert-equal-string; (engine.render-compiled; (compile-template; source, 'page.txt')), '<x>'
+    assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.html')), '&lt;x&gt;'
+    assert-equal-string; (engine.render-parsed; (parse-template; source, 'page.txt')), '<x>'

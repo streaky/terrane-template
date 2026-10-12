@@ -1,0 +1,158 @@
+namespace template-compiled-tests
+
+from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value
+from /generated/template/compiled-tests import make-template-engine
+from /core/filesystem import filesystem-capability, filesystem-write-atomic
+from /core/filesystem/paths import path
+from /core/errors import throwable
+from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
+from /core/collections import map, list
+
+function fixture-engine template-engine;
+    arguments = test-arguments;
+    if arguments.length != 1 or not arguments[0].is-text
+        fail; 'supply the absolute templates directory as --argument'
+    engine = make-template-engine;
+    engine.add-path; arguments[0].text
+    return engine
+
+function rendering-error string; engine ref template-engine, name string, mode string
+    message string = ''
+    try
+        engine.fetch; name, mode
+    catch throwable as error
+        message = error.message
+    return message
+
+function save-runtime-template; name string, source string
+    saved = filesystem-write-atomic; (filesystem-capability;), (instance path; name), (source.encode; utf8)
+    assert-equal-bool; saved.failed, false
+
+function test-generated-html-and-text-policy-parity;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'plain.txt'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+    for name in (list; 'basic.html', 'plain.txt')
+        assert-equal-string; (engine.fetch; name, 'dynamic'), (engine.fetch; name)
+    engine.assign; 'title', (text-value; '<y>')
+    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;y&gt;|<y>|&lt;y&gt;|a|b|true|\n'
+
+function test-compiled-escaping-policy-remains-configurable;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    engine.set-autoescape; false
+    assert-equal-string; (engine.fetch; 'basic.html'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html', 'dynamic'), (engine.fetch; 'basic.html')
+    engine.set-autoescape; true
+    engine.set-string-autoescape; false
+    assert-equal-string; (engine.fetch; 'plain.txt'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'plain.txt', 'dynamic'), (engine.fetch; 'plain.txt')
+    engine.select-autoescape;
+    assert-equal-string; (engine.fetch; 'plain.txt'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+
+function test-nested-branches-loops-includes-and-scope-parity;
+    engine = fixture-engine;
+    engine.assign; 'show', (bool-value; true)
+    people list of template-value = list;
+    first map of string, template-value = map;
+    first.set; 'name', (text-value; '<Ada>')
+    second map of string, template-value = map;
+    second.set; 'name', (text-value; 'Lin')
+    people.append; (object-value; first)
+    people.append; (object-value; second)
+    engine.assign; 'people', (list-value; people)
+    engine.assign; 'person', (text-value; 'outer')
+    assert-equal-string; (engine.fetch; 'nested.html'), 'true:false:F:1=&lt;Ada&gt;[<Ada>];false:true:N:2=Lin[Lin];\n'
+    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), (engine.fetch; 'nested.html')
+    assert-equal-string; (engine.render; '{{ person }}'), 'outer'
+    assert-equal-bool; (engine.assigned; 'loop'), false
+    empty list of template-value = list;
+    engine.assign; 'people', (list-value; empty)
+    assert-equal-string; (engine.fetch; 'nested.html'), 'empty\n'
+    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), 'empty\n'
+    engine.assign; 'show', (bool-value; false)
+    assert-equal-string; (engine.fetch; 'nested.html'), 'hidden\n'
+    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), 'hidden\n'
+
+function test-widget-callback-and-error-parity;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    assert-equal-string; (rendering-error; ref engine, 'widget.html', 'compiled'), 'unregistered widget: badge'
+    assert-equal-string; (rendering-error; ref engine, 'widget.html', 'dynamic'), 'unregistered widget: badge'
+    engine.register-widget; 'badge', badge
+    assert-equal-string; (engine.fetch; 'widget.html'), '<strong>&lt;x&gt;</strong>|<strong></strong>\n'
+    assert-equal-string; (engine.fetch; 'widget.html', 'dynamic'), (engine.fetch; 'widget.html')
+
+function test-strict-context-errors-match-both-modes;
+    engine = fixture-engine;
+    person map of string, template-value = map;
+    person.set; 'name', (text-value; 'Ada')
+    engine.assign; 'person', (object-value; person)
+    engine.assign; 'title', (text-value; 'string')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, 'missing.html', mode), 'undefined field: person.missing'
+        assert-equal-string; (rendering-error; ref engine, 'notobject.html', mode), 'not an object: title.name'
+        assert-equal-string; (rendering-error; ref engine, 'sequence.html', mode), 'for requires a list value'
+    engine = fixture-engine;
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, 'missing.html', mode), 'undefined variable: person.missing'
+
+function test-recursive-include-control-depth-matches;
+    engine = fixture-engine;
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, 'recursive.html', mode), 'template nesting/include depth exceeds 64'
+
+function test-runtime-only-template-is-not-in-build-inventory;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    assert-equal-string; (rendering-error; ref engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
+    assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), '<x>\n'
+    engine.add-path; '.'
+    save-runtime-template; 'runtime-only.txt', 'changed {{ title }}'
+    assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), 'changed <x>'
+    save-runtime-template; 'runtime-only.txt', 'again {{ title }}'
+    engine.set-mode; 'dynamic'
+    assert-equal-string; (engine.fetch; 'runtime-only.txt'), 'again <x>'
+    assert-equal-string; (rendering-error; ref engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
+
+function test-fetch-mode-overrides-do-not-change-engine-mode;
+    engine = fixture-engine;
+    engine.assign; 'title', (text-value; '<x>')
+    engine.add-path; '.'
+    save-runtime-template; 'basic.html', 'runtime {{ title }}'
+    assert-equal-string; (engine.fetch; 'basic.html', 'dynamic'), 'runtime &lt;x&gt;'
+    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    engine.set-mode; 'dynamic'
+    assert-equal-string; (engine.fetch; 'basic.html'), 'runtime &lt;x&gt;'
+    assert-equal-string; (engine.fetch; 'basic.html', 'compiled'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html'), 'runtime &lt;x&gt;'
+
+function test-literal-unicode-and-control-byte-parity;
+    engine = fixture-engine;
+    expected = 'é é apostrophe\'s backslash\\ tab\t carriage\r null'.concat; (b'\0'.decode; utf8), ' a|b\n'
+    assert-equal-string; (engine.fetch; 'literals.txt'), expected
+    assert-equal-string; (engine.fetch; 'literals.txt', 'dynamic'), expected
+
+function test-invalid-modes-and-template-names-are-rejected;
+    engine = fixture-engine;
+    assert-equal-string; (rendering-error; ref engine, 'basic.html', 'invalid'), 'template mode must be default, compiled or dynamic'
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; ref engine, '../basic.html', mode), 'invalid template name: ../basic.html'
+    message string = ''
+    try
+        engine.set-mode; 'default'
+    catch throwable as error
+        message = error.message
+    assert-equal-string; message, 'template mode must be compiled or dynamic'
+
+function test-zero-in-runtime-filename-is-not-nul;
+    engine = fixture-engine;
+    engine.add-path; '.'
+    save-runtime-template; 'file0.txt', 'zero'
+    assert-equal-string; (engine.fetch; 'file0.txt', 'dynamic'), 'zero'
+    assert-equal-string; (rendering-error; ref engine, 'file0.txt', 'compiled'), 'template not available at build time: file0.txt; use dynamic mode for runtime files'
+    name = b'zero\0name.txt'.decode; utf8
+    expected = 'invalid template name: '.concat; name
+    assert-equal-string; (rendering-error; ref engine, name, 'compiled'), expected
+    assert-equal-string; (rendering-error; ref engine, name, 'dynamic'), expected

@@ -39,7 +39,7 @@ function expression-parts list of string; text string
     pieces.append; (data[(range; start, data.length)].decode; utf8)
     return pieces
 
-public function compile-template compiled-template; source string, name string = ''
+public function parse-template parsed-template; source string, name string = ''
     source-bytes = source.encode; utf8
     tokens list of template-token = list;
     frames list of template-frame = list;
@@ -160,7 +160,7 @@ public function compile-template compiled-template; source string, name string =
         tokens.append; (instance template-token; 'text', literal, literal-start)
     if frames.length > 0
         throw template-error; 'Unclosed control directive'
-    return instance compiled-template; tokens, name
+    return instance parsed-template; tokens, name
 
 private function valid-expression bool; value string
     parts = expression-parts; value

@@ -1,0 +1,12 @@
+package = "streaky-template-consumer"
+artifact = "executable"
+
+[namespaces]
+streaky-template-consumer = "src"
+
+[profile]
+capabilities = ["filesystem", "process"]
+
+[terrane-dependencies]
+streaky-template = { path = ".." }
+annotation-consumer-protocol = { path = "../../../tools/annotation-consumers/protocol" }

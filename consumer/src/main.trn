@@ -1,0 +1,121 @@
+namespace streaky-template-consumer
+
+from /annotation-consumer-protocol import quote, read-request, emit-source, emit-error, error-origin, consumer-error
+from /core/collections import list, range
+from /core/documents import document-value, make-document-none
+from /core/encodings import utf8
+from /core/errors import throwable
+from /core/process import arguments
+from /streaky/template import parse-template, generate-template-function, template-loader, template-token, parsed-template, check-template-name
+
+function fail; message string
+    throw (instance consumer-error; (make-document-none;), message)
+
+function valid-segment bool; value string
+    data = value.encode; utf8
+    if data.length == 0 or value == '.' or value == '..'
+        return false
+    index int = 0
+    while index < data.length
+        byte = data[index]
+        if not ((byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or (byte >= 48 and byte <= 57) or byte == 95 or byte == 45)
+            return false
+        index = index + 1
+    return true
+
+function valid-namespace bool; value string
+    if value == '' or (value.contains.start; '/') or (value.contains.end; '/')
+        return false
+    for segment in (value.split; '/')
+        if not (valid-segment; segment)
+            return false
+    return true
+
+
+function include-name string; token template-token
+    data = token.text.encode; utf8
+    return data[(range; 1, data.length - 1)].decode; utf8
+
+function contains-name bool; names list of string, name string
+    for previous in names
+        if previous == name
+            return true
+    return false
+
+function generate string; request document-value
+    args = arguments;
+    roots list of string = list;
+    entries list of string = list;
+    output-namespace string = ''
+    namespace-seen bool = false
+    index int = 0
+    while index < args.length
+        argument = args[index].text
+        if argument == '--root' or argument == '--template' or argument == '--namespace'
+            if index + 1 >= args.length
+                fail; ('missing value for '.concat; argument)
+            value = args[index + 1].text
+            if argument == '--root'
+                if value == ''
+                    fail; '--root must not be empty'
+                roots.append; value
+            else if argument == '--template'
+                check-template-name; value
+                entries.append; value
+            else
+                if namespace-seen
+                    fail; '--namespace may be supplied only once'
+                namespace-seen = true
+                output-namespace = value
+            index = index + 1
+        else if argument.contains.start; '--'
+            fail; ('unknown option: '.concat; argument)
+        else
+            fail; ('unexpected argument: '.concat; argument)
+        index = index + 1
+    if not namespace-seen or not (valid-namespace; output-namespace)
+        fail; '--namespace is required and must be a canonical safe namespace'
+    if roots.length == 0
+        fail; 'at least one --root is required'
+    if entries.length == 0
+        fail; 'at least one --template entry is required'
+
+    loader = instance template-loader;
+    for root in roots
+        loader.add-path; root
+    names list of string = list;
+    programs list of parsed-template = list;
+    for entry in entries
+        if not (contains-name; names, entry)
+            names.append; entry
+    program-index int = 0
+    while program-index < names.length
+        name = names[program-index]
+        program = parse-template; (loader.load; name), name
+        programs.append; program
+        for token in program.tokens
+            if token.kind == 'include'
+                included-name = include-name; token
+                check-template-name; included-name
+                if not (contains-name; names, included-name)
+                    names.append; included-name
+        program-index = program-index + 1
+
+    source = 'namespace '.concat; output-namespace, '\nfrom /streaky/template import template-engine, template-value, template-error, check-template-depth, template-lookup, template-field, template-loop-context, format-template-value, text-value, bool-value, empty-value\nfrom /core/collections import map, list\n\n'
+    for program-index in (range; 0, programs.length)
+        function-name = 'render-template'.concat; program-index
+        source = source.concat; (generate-template-function; programs[program-index], function-name), '\n\n'
+    source = source.concat; 'public function make-template-engine template-engine;\n    engine = instance template-engine;\n'
+    for root in roots
+        source = source.concat; '    engine.add-path; ', (quote; root), '\n'
+    for program-index in (range; 0, names.length)
+        source = source.concat; '    engine.register-template; ', (quote; names[program-index]), ', render-template', program-index, '\n'
+    source = source.concat; '    return engine\n'
+    return source
+
+function main;
+    try
+        request = read-request;
+        emit-source; 'templates', (generate; request)
+    catch throwable as error
+        emit-error; (error-origin;), error.message

@@ -96,8 +96,9 @@ documentation:
         empty, `.` and `..` components, leading slash, backslash, colon, and NUL are rejected.
         Newer appended roots win; adding with `push=false` places a root at lower priority.
         Each loaded file is at most 1 MiB and must be valid UTF-8. Include/control nesting is
-        guarded at 64 levels. There is no automatic render cache; compile once and reuse a
-        `compiled-template` when repeatedly rendering the same source.
+        guarded at 64 levels. There is no automatic render cache. Ahead-of-time templates
+        are generated as Terrane source during the build. For explicitly interpreted source,
+        parse once and reuse a `parsed-template` to avoid repeated parsing.
     - type: markdown
       markdown: |-
         Spaces, tabs, and newlines separate directive words. Quoted literals may contain a

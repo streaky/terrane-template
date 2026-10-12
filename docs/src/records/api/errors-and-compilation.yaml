@@ -17,7 +17,7 @@ documentation:
   title: "Compilation and errors"
   title-style: text
   summary: >-
-    Compile reusable templates and handle the engine's public template-error type.
+    Generate ahead-of-time Terrane render functions or explicitly parse runtime templates.
   tags:
     - "api"
     - "errors"
@@ -25,30 +25,94 @@ documentation:
   blocks:
     - type: markdown
       markdown: |-
-        `compile-template(source, name='')` returns a `compiled-template`; its public `tokens`
-        field contains template tokens and `name` retains the optional template filename.
-        The empty name denotes an unnamed/string template. Supply a filename when compiling
-        file-derived source manually so the engine can select the right escaping policy.
-        `fetch` and includes retain filenames automatically. `render-compiled(program)`
-        renders against the engine's current values and escaping configuration. Reuse the
-        compiled value to avoid repeated parsing; file fetches do not use an automatic cache.
-        Compilation does not resolve context paths, so undefined values and runtime type
-        mismatches can still fail while rendering.
+        `parse-template(source, name='')` returns a `parsed-template`; its public `tokens`
+        field contains the interpreted token representation and `name` retains the optional
+        template filename. The empty name denotes an unnamed/string template. Supply a
+        filename when parsing file-derived source manually so the engine can select the
+        right escaping policy. `fetch` and includes retain filenames automatically.
+        `render-parsed(program)` renders against the engine's current values and escaping
+        configuration. Reuse this value to avoid repeated runtime parsing; it is not
+        ahead-of-time generated code. `render(source)` always parses dynamically. Neither
+        dynamic fetches nor parsed templates provide an automatic file cache. Parsing does
+        not resolve context paths, so undefined values and runtime type mismatches can still
+        fail while rendering.
     - type: example
-      id: compile-and-render
-      title: "Compile source for repeated rendering"
+      id: parse-and-render
+      title: "Parse source for repeated interpreted rendering"
       language: terrane
       mode: illustrative
       target: null
       timeout-ms: null
       source: |-
-        from /streaky/template import compile-template, template-engine, text-value
+        from /streaky/template import parse-template, template-engine, text-value
 
         engine = instance template-engine;
         engine.assign; 'name', (text-value; 'Ada')
-        program = compile-template; '<p>{{ name }}</p>'
-        first = engine.render-compiled; program
-        second = engine.render-compiled; program
+        program = parse-template; '<p>{{ name }}</p>'
+        first = engine.render-parsed; program
+        second = engine.render-parsed; program
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        Ahead-of-time rendering uses Terrane's existing explicit consumer hook. A consuming
+        package selects the native template consumer with `[consumers.template]`, string
+        `args`, and a nonempty canonical `declarations` list. The application's `main`
+        is a convenient selection anchor; it does not need template annotations. Pass
+        `--namespace`, repeat `--root` for search roots, and repeat `--template` for entry
+        files. Roots are relative to the consuming package and later roots win.
+        Only configured entries and recursively discovered literal includes enter the
+        inventory; unrelated files are not scanned or embedded. Invalid syntax, invalid
+        names, and unavailable includes diagnose at build time. Cycles are discovered once
+        and rendering applies the same 64-level control/include depth guard in both modes.
+
+        Run `sh packages/template/build-consumer.sh` before building the application. It
+        installs the native consumer executable under the package's ignored build directory.
+        The configured generated namespace exports `make-template-engine`, which registers
+        ordinary Terrane render functions and the search roots in an independent engine.
+        Those functions contain literal output, direct field accesses, and native control
+        flow, not an embedded token interpreter. Rebuild the application after template edits;
+        rebuild the consumer executable only when its own source changes.
+
+        Every engine defaults to compiled fetching. `set-mode('compiled'|'dynamic')` sets
+        its default; `fetch` and `display` accept per-call `default`, `compiled`, or `dynamic`.
+        A default call inherits the engine setting; overrides are not sticky and apply
+        through includes. Dynamic files are reread and parsed at runtime. Runtime-only
+        templates require dynamic mode; compiled lookup errors rather than falling back.
+        `render(source)` and `render-parsed(program)` remain explicitly interpreted paths.
+    - type: example
+      id: template-consumer-manifest
+      title: Configure an application beside the template package
+      language: toml
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        [consumers.template]
+        command = "../template/.trn/consumers/template"
+        args = ["--namespace", "generated/template/my-app", "--root", "templates", "--template", "page.html"]
+        declarations = ["/my-app::main"]
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: example
+      id: compiled-and-dynamic-fetch
+      title: Use generated renderers and runtime previews
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /generated/template/my-app import make-template-engine
+        from /streaky/template import text-value
+
+        engine = make-template-engine;
+        engine.assign; 'title', (text-value; 'A page')
+        built = engine.fetch; 'page.html'
+        preview = engine.fetch; 'page.html', 'dynamic'
+        engine.set-mode; 'dynamic'
+        built-again = engine.fetch; 'page.html', 'compiled'
       response: null
       diagnostic: null
       markdown: null
@@ -58,8 +122,9 @@ documentation:
         string and renders as that message. It is raised for malformed/unclosed directives,
         invalid expressions or filters, mismatched control blocks, undefined variables or
         object fields, invalid runtime value kinds, invalid file names, missing or unreadable
-        templates, invalid UTF-8, files over 1 MiB, and unregistered widgets. The engine does
-        not turn these failures into empty output.
+        templates, invalid UTF-8, files over 1 MiB, unavailable compiled inventory entries,
+        invalid render modes, and unregistered widgets. Build-time failures are reported as
+        consumer diagnostics. Neither path silently turns failures into empty output.
   sections: []
   see-also:
     - template.api.template-engine

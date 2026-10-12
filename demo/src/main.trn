@@ -1,14 +1,14 @@
 namespace template-demo
 
 from /core/collections import list, map
-from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html
+from /streaky/template import template-value, text-value, bool-value, list-value, object-value, escape-html
+from /generated/template/template-demo import make-template-engine
 
 function badge string; value template-value
     return '<strong>'.concat; (escape-html; value.text), '</strong>'
 
 function main;
-    engine = instance template-engine;
-    engine.add-path; 'templates'
+    engine = make-template-engine;
     engine.assign; 'title', (text-value; 'Terrane <templates>')
     engine.assign; 'show', (bool-value; true)
     fields map of string, template-value = map;

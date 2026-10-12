@@ -6,11 +6,27 @@ from /core/errors import decode-error
 from /core/filesystem import filesystem-capability, filesystem-exists, filesystem-read-bounded
 from /core/filesystem/paths import join-path, path
 
+function contains-template-nul bool; text string
+    data = text.encode; utf8
+    index int = 0
+    while index < data.length
+        if data[index] == 0
+            return true
+        index = index + 1
+    return false
+
+public function check-template-name; name string
+    if name == '' or (contains-template-nul; name) or (name.contains; '\\') or (name.contains; ':') or (name.contains.start; '/')
+        throw template-error; ('invalid template name: '.concat; name)
+    for part in (name.split; '/')
+        if part == '' or part == '.' or part == '..'
+            throw template-error; ('invalid template name: '.concat; name)
+
 public class template-loader
     private paths list of string
 
     public mutable function add-path; directory string, push bool = true
-        if directory == '' or (directory.contains; '\0') or (directory.contains; '\\')
+        if directory == '' or (contains-template-nul; directory) or (directory.contains; '\\')
             throw template-error; 'template search path must be a non-empty directory path'
         if push
             this.paths.append; directory
@@ -24,14 +40,7 @@ public class template-loader
             this.paths = updated
 
     public function load string; name string
-        if name == '' or (name.contains; '\0') or (name.contains; '\\') or (name.contains; ':') or (name.contains.start; '/')
-            throw template-error; ('invalid template name: '.concat; name)
-        parts = name.split; '/'
-        index int = 0
-        while index < parts.length
-            if parts[index] == '' or parts[index] == '.' or parts[index] == '..'
-                throw template-error; ('invalid template name: '.concat; name)
-            index = index + 1
+        check-template-name; name
 
         authority = filesystem-capability;
         search-index int = this.paths.length - 1
