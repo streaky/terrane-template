@@ -7,8 +7,8 @@ artifact = "executable"
 [profile]
 capabilities = ["filesystem"]
 
-[terrane-dependencies]
-template = { path = "../.." }
+[terrane-dependencies.streaky.template]
+path = "../.."
 
 [testing]
 unit = "tests/unit"

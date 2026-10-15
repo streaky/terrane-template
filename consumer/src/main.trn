@@ -1,6 +1,6 @@
 namespace streaky-template-consumer
 
-from /annotation-consumer-protocol import read-request, emit-source, emit-error, error-origin, consumer-error
+from /terrane/annotation-consumer-protocol import read-request, emit-source, emit-error, error-origin, consumer-error
 from /core/collections import list
 from /core/documents import make-document-none
 from /core/errors import throwable

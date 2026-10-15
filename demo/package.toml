@@ -8,8 +8,8 @@ template-demo = "src"
 [profile]
 capabilities = ["filesystem"]
 
-[terrane-dependencies]
-template = { path = ".." }
+[terrane-dependencies.streaky.template]
+path = ".."
 
 [consumers.template]
 command = "../.trn/consumers/template"

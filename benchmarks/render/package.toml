@@ -8,8 +8,8 @@ template-render-benchmark = "src"
 [profile]
 capabilities = ["filesystem", "process"]
 
-[terrane-dependencies]
-template = { path = "../.." }
+[terrane-dependencies.streaky.template]
+path = "../.."
 
 [consumers.template]
 command = "../../.trn/consumers/template"

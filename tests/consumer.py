@@ -77,8 +77,8 @@ artifact = "executable"
 consumer-regression = "src"
 [profile]
 capabilities = ["filesystem"]
-[terrane-dependencies]
-template = {{ path = {json.dumps(os.path.relpath(PACKAGE, app))} }}
+[terrane-dependencies.streaky.template]
+path = {json.dumps(os.path.relpath(PACKAGE, app))}
 '''
             for name in ('literal', 'condition'):
                 args = ['--namespace', f'generated/regression/{name}', '--root',
