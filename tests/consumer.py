@@ -7,19 +7,19 @@ import tempfile
 import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
-TERRANE = Path(os.environ.get('TERRANE', PACKAGE.parents[1] / 'target/debug/terrane'))
-CONSUMER = PACKAGE / 'consumer/.trn/build/application/artifacts/debug/terrane_program'
+TERRANE = Path(os.environ.get('TERRANE', PACKAGE.parents[1] / 'target/debug/terrane')).resolve()
 REQUEST = json.dumps({'format': 1, 'declarations': []})
 
 
 class ConsumerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        subprocess.run([str(TERRANE), 'build', 'consumer/package.toml'],
-                       cwd=PACKAGE, check=True)
+        result = subprocess.run([str(TERRANE), 'build', 'consumer/package.toml'],
+                                cwd=PACKAGE, check=True, capture_output=True, text=True)
+        cls.consumer = Path(result.stdout.strip())
 
     def invoke(self, args, cwd):
-        result = subprocess.run([str(CONSUMER), *args], input=REQUEST, text=True,
+        result = subprocess.run([str(self.consumer), *args], input=REQUEST, text=True,
                                 capture_output=True, cwd=cwd, timeout=20, check=True)
         return json.loads(result.stdout)
 
@@ -69,7 +69,6 @@ class ConsumerTests(unittest.TestCase):
             self.assertEqual(response['generated_sources'], [])
 
     def test_literal_and_condition_only_units_compile_and_render(self):
-        compiler = Path(os.environ.get('TERRANE', str(PACKAGE.parents[1] / 'target/debug/terrane'))).resolve()
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory)
             (app / 'src').mkdir()
@@ -101,7 +100,7 @@ function main;
     print; (engine.fetch; 'condition.txt')
 ''')
             def render():
-                built = subprocess.run([str(compiler), 'build', str(app)], text=True,
+                built = subprocess.run([str(TERRANE), 'build', str(app)], text=True,
                                        capture_output=True, timeout=120)
                 self.assertEqual(built.returncode, 0, built.stderr)
                 self.assertNotIn('warning', built.stderr.lower())

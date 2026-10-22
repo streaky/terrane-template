@@ -4,6 +4,7 @@ rust-toolchain = "pinned"
 
 [namespaces]
 "streaky/template" = "src"
+
 [consumer-tools]
 template = "consumer/package.toml"
 

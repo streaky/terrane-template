@@ -79,8 +79,11 @@ documentation:
         and refreshes the tool as needed. The configured generated namespace exports
         `make-template-engine`, which registers ordinary Terrane render functions and only
         explicitly supplied runtime roots. Those functions contain literal output, direct
-        field accesses, and native control flow, not an embedded token interpreter. Terrane
-        also refreshes generated consumer source when the inputs change.
+        field accesses, and native control flow, not an embedded token interpreter.
+        Rebuild the application after template edits: the consumer resolves entries and
+        recursive includes, regenerates source when its arguments or loaded template
+        contents change, and otherwise reuses its cached output. Existing compiled
+        binaries do not pick up template-file edits at runtime.
 
         Every engine defaults to compiled fetching. `set-mode('compiled'|'dynamic')` sets
         its default; `fetch` and `display` accept per-call `default`, `compiled`, or `dynamic`.

@@ -16,6 +16,13 @@ functions before compilation; the resulting binary renders them without reading 
 
 ## Configure an application
 
+The exported build-time consumer currently requires this package to remain at
+`packages/template` inside a Terrane compiler checkout: its protocol and cache helper
+dependencies use relative paths into that checkout's `tools/annotation-consumers`.
+The application may live elsewhere, but copying this package alone or consuming it
+as a standalone Git/source archive does not supply those helpers. This restriction
+applies to the exported tool, not the library's template-engine API.
+
 For an application beside this package, use:
 
 ```toml
