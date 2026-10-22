@@ -9,6 +9,8 @@
 - Reuse generated source when consumer arguments and loaded template inputs are
   unchanged. Rebuilding the application after entry/include edits regenerates the
   affected compiled templates through ordinary consumer preparation.
+- Keep compiler diagnostics visible when consumer protocol test setup cannot build
+  the generator, while capturing the reported executable path from stdout.
 - Give `template-value` a standard `to-string` representation shared by interpolation,
   string concatenation, printing, `.concat`, and `.join`, preserving strict container
   rejection and keeping raw conversion separate from escaping.

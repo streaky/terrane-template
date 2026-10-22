@@ -15,7 +15,7 @@ class ConsumerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         result = subprocess.run([str(TERRANE), 'build', 'consumer/package.toml'],
-                                cwd=PACKAGE, check=True, capture_output=True, text=True)
+                                cwd=PACKAGE, check=True, stdout=subprocess.PIPE, text=True)
         cls.consumer = Path(result.stdout.strip())
 
     def invoke(self, args, cwd):
