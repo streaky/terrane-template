@@ -1,4 +1,4 @@
-"""Behavioral checks for the built native template consumer (build-consumer.sh first)."""
+"""Behavioral checks for the native template consumer protocol."""
 import json
 import os
 from pathlib import Path
@@ -7,11 +7,17 @@ import tempfile
 import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
-CONSUMER = PACKAGE / '.trn/consumers/template'
+TERRANE = Path(os.environ.get('TERRANE', PACKAGE.parents[1] / 'target/debug/terrane'))
+CONSUMER = PACKAGE / 'consumer/.trn/build/application/artifacts/debug/terrane_program'
 REQUEST = json.dumps({'format': 1, 'declarations': []})
 
 
 class ConsumerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        subprocess.run([str(TERRANE), 'build', 'consumer/package.toml'],
+                       cwd=PACKAGE, check=True)
+
     def invoke(self, args, cwd):
         result = subprocess.run([str(CONSUMER), *args], input=REQUEST, text=True,
                                 capture_output=True, cwd=cwd, timeout=20, check=True)
@@ -83,7 +89,7 @@ path = {json.dumps(os.path.relpath(PACKAGE, app))}
             for name in ('literal', 'condition'):
                 args = ['--namespace', f'generated/regression/{name}', '--root',
                         'templates', '--template', f'{name}.txt']
-                manifest += f'\n[consumers.{name}]\ncommand = {json.dumps(str(CONSUMER))}\nargs = {json.dumps(args)}\ndeclarations = ["/consumer-regression::main"]\n'
+                manifest += f'\n[consumers.{name}]\ntool = "streaky/template::template"\nargs = {json.dumps(args)}\ndeclarations = ["/consumer-regression::main"]\n'
             (app / 'package.toml').write_text(manifest)
             (app / 'src/main.trn').write_text('''namespace consumer-regression
 from /generated/regression/literal import make-template-engine as create-literal
@@ -94,14 +100,26 @@ function main;
     engine = create-condition;
     print; (engine.fetch; 'condition.txt')
 ''')
-            built = subprocess.run([str(compiler), 'build', str(app)], text=True,
-                                   capture_output=True, timeout=120)
-            self.assertEqual(built.returncode, 0, built.stderr)
-            self.assertNotIn('warning', built.stderr.lower())
-            with tempfile.TemporaryDirectory() as cwd:
-                result = subprocess.run([built.stdout.strip()], cwd=cwd,
-                                        capture_output=True, timeout=20, check=True)
-            self.assertEqual(result.stdout, (literal + '\nqt\n').encode('utf-8'))
+            def render():
+                built = subprocess.run([str(compiler), 'build', str(app)], text=True,
+                                       capture_output=True, timeout=120)
+                self.assertEqual(built.returncode, 0, built.stderr)
+                self.assertNotIn('warning', built.stderr.lower())
+                with tempfile.TemporaryDirectory() as cwd:
+                    result = subprocess.run([built.stdout.strip()], cwd=cwd,
+                                            capture_output=True, timeout=20, check=True)
+                return result.stdout
+
+            self.assertEqual(render(), (literal + '\nqt\n').encode('utf-8'))
+            state = app / '.trn/consumer-state/build/literal/source.json'
+            unchanged = state.stat().st_ino
+            self.assertEqual(render(), (literal + '\nqt\n').encode('utf-8'))
+            self.assertEqual(state.stat().st_ino, unchanged)
+            (app / 'templates/literal.txt').write_text("{% include 'partial.txt' %}")
+            (app / 'templates/partial.txt').write_text('first')
+            self.assertEqual(render(), b'first\nqt\n')
+            (app / 'templates/partial.txt').write_text('second')
+            self.assertEqual(render(), b'second\nqt\n')
 
 
 if __name__ == '__main__':

@@ -75,13 +75,12 @@ documentation:
         names, and unavailable includes diagnose at build time. Cycles are discovered once
         and rendering applies the same 64-level control/include depth guard in both modes.
 
-        Run `sh packages/template/build-consumer.sh` before building the application. It
-        installs the native consumer executable under the package's ignored build directory.
-        The configured generated namespace exports `make-template-engine`, which registers
-        ordinary Terrane render functions and only explicitly supplied runtime roots.
-        Those functions contain literal output, direct field accesses, and native control
-        flow, not an embedded token interpreter. Rebuild the application after template edits;
-        rebuild the consumer executable only when its own source changes.
+        The library exports the native generator through `consumer-tools`; Terrane builds
+        and refreshes the tool as needed. The configured generated namespace exports
+        `make-template-engine`, which registers ordinary Terrane render functions and only
+        explicitly supplied runtime roots. Those functions contain literal output, direct
+        field accesses, and native control flow, not an embedded token interpreter. Terrane
+        also refreshes generated consumer source when the inputs change.
 
         Every engine defaults to compiled fetching. `set-mode('compiled'|'dynamic')` sets
         its default; `fetch` and `display` accept per-call `default`, `compiled`, or `dynamic`.
@@ -99,7 +98,7 @@ documentation:
       timeout-ms: null
       source: |-
         [consumers.template]
-        command = "../template/.trn/consumers/template"
+        tool = "streaky/template::template"
         args = ["--namespace", "generated/template/my-app", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
         declarations = ["/my-app::main"]
       response: null

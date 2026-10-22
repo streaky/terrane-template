@@ -12,6 +12,6 @@ capabilities = ["filesystem"]
 path = ".."
 
 [consumers.template]
-command = "../.trn/consumers/template"
+tool = "streaky/template::template"
 args = ["--namespace", "generated/template/template-demo", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
 declarations = ["/template-demo::main"]
