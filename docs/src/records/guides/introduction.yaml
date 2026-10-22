@@ -32,9 +32,9 @@ documentation:
         reflection over host objects.
     - type: markdown
       markdown: |-
-        Add the package and its filesystem effect to the consumer manifest. Its manifest
-        identity and public namespace are `streaky/template`; `template` is the short
-        dependency name. Adjust the illustrative sibling path for the consuming package.
+        Add the package and its filesystem effect to the consumer manifest. Its canonical
+        dependency identity and public namespace are `streaky/template`. Adjust the
+        illustrative sibling path for the consuming package.
     - type: example
       id: dependency-and-profile
       title: "Dependency and filesystem capability"
@@ -43,8 +43,8 @@ documentation:
       target: null
       timeout-ms: null
       source: |-
-        [terrane-dependencies]
-        template = { path = "../template" }
+        [terrane-dependencies.streaky.template]
+        path = "../template"
 
         [profile]
         capabilities = ["filesystem"]
@@ -53,8 +53,8 @@ documentation:
       markdown: null
     - type: markdown
       markdown: |-
-        First run `sh packages/template/build-consumer.sh` from the compiler checkout
-        to build the native consumer. Then run the included demo from `packages/template/demo`:
+        The template package exports its native generator; Terrane builds and refreshes it
+        automatically when needed. Run the included demo from `packages/template/demo`:
         invoke `../../../target/debug/terrane run .` for a repository-built binary, or
         `terrane run .` when the compiler is installed. It uses `templates/page.html` and
         demonstrates object/list assignment, escaping, includes, and a widget.

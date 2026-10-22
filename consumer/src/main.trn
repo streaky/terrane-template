@@ -1,8 +1,9 @@
 namespace streaky-template-consumer
 
 from /terrane/annotation-consumer-protocol import read-request, emit-source, emit-error, error-origin, consumer-error
+from /terrane/consumer-cache import source-cache
 from /core/collections import list
-from /core/documents import make-document-none
+from /core/documents import document-value, make-document-none
 from /core/errors import throwable
 from /core/process import arguments
 from /streaky/template import parse-template, generate-template-unit, template-loader, parsed-template, check-template-name, template-identifier-valid, template-include-name
@@ -24,7 +25,7 @@ private function contains-name bool; names list of string, name string
             return true
     return false
 
-private function generate string;
+private function generate string; request document-value
     args = arguments;
     roots list of string = list;
     runtime-roots list of string = list;
@@ -73,6 +74,7 @@ private function generate string;
     parents list of string = list;
     offsets list of int = list;
     programs list of parsed-template = list;
+    inputs list of string = list;
     for entry in entries
         if not (contains-name; names, entry)
             names.append; entry
@@ -83,7 +85,10 @@ private function generate string;
         name = names[program-index]
         program parsed-template
         try
-            program = parse-template; (loader.load; name), name
+            source = loader.load; name
+            inputs.append; name
+            inputs.append; source
+            program = parse-template; source, name
         catch throwable as error
             diagnostic = error.message
             if not (diagnostic.contains.start; 'template ' + name + ' at byte ')
@@ -104,12 +109,18 @@ private function generate string;
                     parents.append; name
                     offsets.append; token.offset
         program-index = program-index + 1
-    return generate-template-unit; output-namespace, programs, runtime-roots
+    cache = instance source-cache; request, inputs
+    cached = cache.load;
+    if cached != none
+        return cached
+    source = generate-template-unit; output-namespace, programs, runtime-roots
+    cache.store; source
+    return source
 
 
 function main;
     try
-        read-request;
-        emit-source; 'templates', (generate;)
+        request = read-request;
+        emit-source; 'templates', (generate; request)
     catch throwable as error
         emit-error; (error-origin;), error.message

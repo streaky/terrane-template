@@ -7,30 +7,38 @@ A small, pure Terrane template engine with ahead-of-time Terrane source generati
 From `packages/template` in the compiler checkout:
 
 ```sh
-sh build-consumer.sh
 ../../target/debug/terrane run demo
 ```
 
-The helper builds a native Terrane consumer and installs it under the ignored `.trn/consumers/` directory. The demo's configured templates become ordinary Terrane functions before compilation; the resulting binary renders them without reading the template files.
+The library exports its native generator through `consumer-tools`; Terrane builds and
+refreshes that tool as needed. The demo's configured templates become ordinary Terrane
+functions before compilation; the resulting binary renders them without reading the template files.
 
 ## Configure an application
+
+The exported build-time consumer currently requires this package to remain at
+`packages/template` inside a Terrane compiler checkout: its protocol and cache helper
+dependencies use relative paths into that checkout's `tools/annotation-consumers`.
+The application may live elsewhere, but copying this package alone or consuming it
+as a standalone Git/source archive does not supply those helpers. This restriction
+applies to the exported tool, not the library's template-engine API.
 
 For an application beside this package, use:
 
 ```toml
-[terrane-dependencies]
-template = { path = "../template" }
+[terrane-dependencies.streaky.template]
+path = "../template"
 
 [profile]
 capabilities = ["filesystem"]
 
 [consumers.template]
-command = "../template/.trn/consumers/template"
+tool = "streaky/template::template"
 args = ["--namespace", "generated/template/my-app", "--root", "templates", "--runtime-root", "templates", "--template", "page.html"]
 declarations = ["/my-app::main"]
 ```
 
-Adjust the paths and namespace for the application. Consumer commands and build roots (`--root`) resolve from the consuming package's directory. Build roots are not embedded in the factory. Optional, repeatable `--runtime-root` values configure separate runtime search paths; relative runtime roots resolve from the process working directory. With no runtime roots supplied, configure dynamic loading with `engine.add-path` in the application. Terrane requires a nonempty declaration selection; the application's canonical `main` is a convenient selection anchor, and the template consumer does not require annotations on it.
+Adjust the namespace for the application. Build roots (`--root`) resolve from the consuming package's directory and are not embedded in the factory. Optional, repeatable `--runtime-root` values configure separate runtime search paths; relative runtime roots resolve from the process working directory. With no runtime roots supplied, configure dynamic loading with `engine.add-path` in the application. Terrane requires a nonempty declaration selection; the application's canonical `main` is a convenient selection anchor, and the template consumer does not require annotations on it.
 
 Repeat `--root` for search roots (later roots win), and `--template` for entry templates. Only those entries and their recursively discovered literal includes are compiled. Roots are **not** scanned indiscriminately: unrelated files remain runtime-only. Malformed templates, invalid names, and missing includes diagnose during the build. Include cycles can be compiled; rendering rejects excessive include/control nesting at depth 64.
 
@@ -45,7 +53,7 @@ engine.assign; 'title', (text-value; 'A page')
 html = engine.fetch; 'page.html'
 ```
 
-The generated functions contain literal output, direct root/field lookups, and native Terrane `if`/`while` control flow—not a stored token stream or a runtime expression parser. The factory registers those functions and only explicitly supplied runtime roots in an independent engine. Rebuild the application after changing an ahead-of-time template; the consumer executable only needs rebuilding when its implementation changes.
+The generated functions contain literal output, direct root/field lookups, and native Terrane `if`/`while` control flow—not a stored token stream or a runtime expression parser. The factory registers those functions and only explicitly supplied runtime roots in an independent engine. Normal application builds keep the consumer executable current. The consumer resolves entries and recursive includes, reuses generated source when its arguments and loaded template contents are unchanged, and regenerates when those inputs change. It does not invalidate generation for unrelated caller metadata.
 
 ## Compiled and dynamic modes
 
@@ -123,7 +131,6 @@ and literal-only bodies skip creating a loop context.
 From `packages/template`:
 
 ```sh
-sh build-consumer.sh
 ../../target/debug/terrane test --argument "$PWD/tests/fixtures" .
 ../../target/debug/terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
 python tests/consumer.py
