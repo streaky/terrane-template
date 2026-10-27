@@ -81,8 +81,8 @@ function test-nested-branches-loops-includes-and-scope-parity;
 function test-widget-callback-and-error-parity;
     engine = fixture-engine;
     engine.assign; 'title', (text-value; '<x>')
-    assert-equal-string; (rendering-error; ref engine, 'widget.html', 'compiled'), 'unregistered widget: badge'
-    assert-equal-string; (rendering-error; ref engine, 'widget.html', 'dynamic'), 'unregistered widget: badge'
+    assert-equal-string; (rendering-error; engine, 'widget.html', 'compiled'), 'unregistered widget: badge'
+    assert-equal-string; (rendering-error; engine, 'widget.html', 'dynamic'), 'unregistered widget: badge'
     engine.register-widget; 'badge', badge
     assert-equal-string; (engine.fetch; 'widget.html'), '<strong>&lt;x&gt;</strong>|<strong></strong>\n'
     assert-equal-string; (engine.fetch; 'widget.html', 'dynamic'), (engine.fetch; 'widget.html')
@@ -94,22 +94,22 @@ function test-strict-context-errors-match-both-modes;
     engine.assign; 'person', (object-value; person)
     engine.assign; 'title', (text-value; 'string')
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, 'missing.html', mode), 'undefined field: person.missing'
-        assert-equal-string; (rendering-error; ref engine, 'notobject.html', mode), 'not an object: title.name'
-        assert-equal-string; (rendering-error; ref engine, 'sequence.html', mode), 'for requires a list value'
+        assert-equal-string; (rendering-error; engine, 'missing.html', mode), 'undefined field: person.missing'
+        assert-equal-string; (rendering-error; engine, 'notobject.html', mode), 'not an object: title.name'
+        assert-equal-string; (rendering-error; engine, 'sequence.html', mode), 'for requires a list value'
     engine = fixture-engine;
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, 'missing.html', mode), 'undefined variable: person.missing'
+        assert-equal-string; (rendering-error; engine, 'missing.html', mode), 'undefined variable: person.missing'
 
 function test-recursive-include-control-depth-matches;
     engine = fixture-engine;
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, 'recursive.html', mode), 'template nesting/include depth exceeds 64'
+        assert-equal-string; (rendering-error; engine, 'recursive.html', mode), 'template nesting/include depth exceeds 64'
 
 function test-runtime-only-template-is-not-in-build-inventory;
     engine = fixture-engine;
     engine.assign; 'title', (text-value; '<x>')
-    assert-equal-string; (rendering-error; ref engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
+    assert-equal-string; (rendering-error; engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
     assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), '<x>\n'
     engine.add-path; '.'
     save-runtime-template; 'runtime-only.txt', 'changed {{ title }}'
@@ -117,7 +117,7 @@ function test-runtime-only-template-is-not-in-build-inventory;
     save-runtime-template; 'runtime-only.txt', 'again {{ title }}'
     engine.set-mode; 'dynamic'
     assert-equal-string; (engine.fetch; 'runtime-only.txt'), 'again <x>'
-    assert-equal-string; (rendering-error; ref engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
+    assert-equal-string; (rendering-error; engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
 
 function test-fetch-mode-overrides-do-not-change-engine-mode;
     engine = fixture-engine;
@@ -139,9 +139,9 @@ function test-literal-unicode-and-control-byte-parity;
 
 function test-invalid-modes-and-template-names-are-rejected;
     engine = fixture-engine;
-    assert-equal-string; (rendering-error; ref engine, 'basic.html', 'invalid'), 'template mode must be default, compiled or dynamic'
+    assert-equal-string; (rendering-error; engine, 'basic.html', 'invalid'), 'template mode must be default, compiled or dynamic'
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, '../basic.html', mode), 'invalid template name: ../basic.html'
+        assert-equal-string; (rendering-error; engine, '../basic.html', mode), 'invalid template name: ../basic.html'
     message string = ''
     try
         engine.set-mode; 'default'
@@ -154,11 +154,11 @@ function test-zero-in-runtime-filename-is-not-nul;
     engine.add-path; '.'
     save-runtime-template; 'file0.txt', 'zero'
     assert-equal-string; (engine.fetch; 'file0.txt', 'dynamic'), 'zero'
-    assert-equal-string; (rendering-error; ref engine, 'file0.txt', 'compiled'), 'template not available at build time: file0.txt; use dynamic mode for runtime files'
+    assert-equal-string; (rendering-error; engine, 'file0.txt', 'compiled'), 'template not available at build time: file0.txt; use dynamic mode for runtime files'
     name = b'zero\0name.txt'.decode; utf8
     expected = 'invalid template name: '.concat; name
-    assert-equal-string; (rendering-error; ref engine, name, 'compiled'), expected
-    assert-equal-string; (rendering-error; ref engine, name, 'dynamic'), expected
+    assert-equal-string; (rendering-error; engine, name, 'compiled'), expected
+    assert-equal-string; (rendering-error; engine, name, 'dynamic'), expected
 
 function test-empty-and-literal-only-control-body-parity;
     engine = fixture-engine;
@@ -174,7 +174,7 @@ function test-empty-and-literal-only-control-body-parity;
         assert-equal-string; (engine.fetch; 'empty.html', mode), 'ABC\n'
     engine.assign; 'items', (text-value; 'wrong kind')
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, 'empty.html', mode), 'for requires a list value'
+        assert-equal-string; (rendering-error; engine, 'empty.html', mode), 'for requires a list value'
 
 function test-negation-whitespace-and-quoted-condition-parity;
     engine = fixture-engine;
@@ -208,4 +208,4 @@ function test-widget-declared-throw-contract-propagates-in-both-modes;
     engine.assign; 'title', (text-value; 'input')
     engine.register-widget; 'badge', failing-widget
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (rendering-error; ref engine, 'widget.html', mode), 'widget failed: input'
+        assert-equal-string; (rendering-error; engine, 'widget.html', mode), 'widget failed: input'
