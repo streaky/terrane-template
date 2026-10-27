@@ -202,7 +202,7 @@ private function generated-value string; expression string, context-name string
     else if (quoted; expression)
         return '(text-value; ' + (quoted-source; (unquote; expression)) + ')'
     parts = expression.split; '.'
-    code = '(template-lookup; ref ' + context-name + ', ' + (quoted-source; parts[0]) + ', ' + (quoted-source; expression) + ')'
+    code = '(template-lookup; ' + context-name + ', ' + (quoted-source; parts[0]) + ', ' + (quoted-source; expression) + ')'
     part-index int = 1
     while part-index < parts.length
         code = '(template-field; ' + code + ', ' + (quoted-source; parts[part-index]) + ', ' + (quoted-source; expression) + ')'

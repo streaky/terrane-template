@@ -112,7 +112,7 @@ public class template-engine
         available = this.templates.get.checked; name
         if available != none
             renderer = this.templates[name]
-            return renderer; ref this, context, depth
+            return renderer; this, context, depth
         throw template-error; 'template not available at build time: ' + name + '; use dynamic mode for runtime files'
 
     function render-widget string; name string, argument template-value
@@ -139,10 +139,10 @@ public class template-engine
                     filter string = ''
                     if parts.length == 2
                         filter = parts[1].trim;
-                    output = output + (format-template-value; (resolve-value; parts[0], ref context), autoescape, filter)
+                    output = output + (format-template-value; (resolve-value; parts[0], context), autoescape, filter)
                 case 'if'
                     negate = condition-negated; token.text
-                    test = resolve-value; (condition-expression; token.text), ref context
+                    test = resolve-value; (condition-expression; token.text), context
                     selected bool = test.truthy;
                     if negate
                         selected = not selected
@@ -155,7 +155,7 @@ public class template-engine
                         output = output + (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
                     cursor = token.end
                 case 'for'
-                    sequence = resolve-value; token.text, ref context
+                    sequence = resolve-value; token.text, context
                     if sequence.kind != 'list'
                         throw template-error; 'for requires a list value'
                     boundary int = token.end
@@ -176,7 +176,7 @@ public class template-engine
                     words = template-words; token.text
                     argument = empty-value;
                     if words.length == 2
-                        argument = resolve-value; words[1], ref context
+                        argument = resolve-value; words[1], context
                     output = output + (this.render-widget; words[0], argument)
             cursor = cursor + 1
         return output
