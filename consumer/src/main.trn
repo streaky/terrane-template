@@ -1,12 +1,15 @@
 namespace streaky-template-consumer
 
-from /terrane/annotation-consumer-protocol import read-request, emit-source, emit-error, error-origin, consumer-error
+from /terrane/annotation-consumer-protocol import
+    read-request, emit-source, emit-error, error-origin, consumer-error
 from /terrane/consumer-cache import source-cache
 from /core/collections import list
 from /core/documents import document-value, make-document-none
 from /core/errors import throwable
 from /core/process import arguments
-from /streaky/template import parse-template, generate-template-unit, template-loader, parsed-template, check-template-name, template-identifier-valid, template-include-name
+from /streaky/template import
+    parse-template, generate-template-unit, template-loader, parsed-template,
+    check-template-name, template-identifier-valid, template-include-name
 
 private function fail; message string
     throw (instance consumer-error; (make-document-none;), message)

@@ -120,6 +120,10 @@ event bound for this benchmark. CPU attribution may be unavailable even when agg
 capture timing and native allocation stacks are useful. Captures are ignored build
 artifacts under `.trn/`; retain them for subsequent inspection.
 
+Name and identifier validation scan borrowed UTF-8 byte views without allocating
+encoded byte buffers. Parsing still retains byte buffers where indexed lookahead
+and byte-range decoding are required.
+
 Ahead-of-time rendering removes runtime parsing, not all allocation. Context maps use
 copy-on-write storage: read-only fetches share backing storage, but adding iterator and
 `loop` bindings copies the map's entries to preserve outer scope. Large contexts in
@@ -128,14 +132,26 @@ and literal-only bodies skip creating a loop context.
 
 ## Verify
 
-From `packages/template`:
+From `packages/template` in the Terrane checkout, with the current checkout compiler
+available as `terrane` on `PATH`:
 
 ```sh
-../../target/debug/terrane test --argument "$PWD/tests/fixtures" .
-../../target/debug/terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
+export TERRANE="$(command -v terrane)"
+terrane test --argument "$PWD/tests/fixtures" .
+terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
 python tests/consumer.py
+terrane build demo/package.toml
+terrane run demo
 ```
 
-The arguments provide read-only fixture roots because Terrane runs tests in isolated working directories. Runtime-write cases write only in those directories. The second suite exercises real generated render functions against the dynamic implementation.
+The first command runs the full package unit suite; the second builds and runs the
+compiled-template integration suite against its fixture directory. The Python consumer
+tests require Python 3 and build the exported consumer through `terrane build`; they
+cover diagnostics, literal-only and condition-only generated units, recursive includes,
+cache reuse/invalidation, and compile and render the generated application. The demo
+commands build and execute the configured AOT example. These commands require the
+current Terrane compiler and the package's pinned native dependencies to be available.
+Test arguments provide read-only fixture roots because Terrane runs tests in isolated
+working directories. Runtime-write cases write only in those directories.
 
 The short package/dependency name is `template`; its manifest identity and public namespace are `streaky/template`.

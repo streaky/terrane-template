@@ -56,27 +56,31 @@ public class template-value
                 throw template-error; 'unknown template value kind: ' + this.kind
 
 public function text-value template-value; value string
-    result = instance template-value;
-    result.kind = 'text'
-    result.text = value
+    result = instance template-value; {
+        kind = 'text'
+        text = value
+    }
     return result
 
 public function bool-value template-value; value bool
-    result = instance template-value;
-    result.kind = 'bool'
-    result.boolean = value
+    result = instance template-value; {
+        kind = 'bool'
+        boolean = value
+    }
     return result
 
 public function list-value template-value; value list of template-value
-    result = instance template-value;
-    result.kind = 'list'
-    result.items = value
+    result = instance template-value; {
+        kind = 'list'
+        items = value
+    }
     return result
 
 public function object-value template-value; value map of string, template-value
-    result = instance template-value;
-    result.kind = 'object'
-    result.fields = value
+    result = instance template-value; {
+        kind = 'object'
+        fields = value
+    }
     return result
 
 public function empty-value template-value;

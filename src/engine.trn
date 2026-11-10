@@ -90,11 +90,15 @@ public class template-engine
 
     function render string; source string
         program = parse-template; source
-        return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name), this.mode
+        return this.render-range;
+            program, this.values, 0, program.tokens.length, 0,
+            (this.autoescape-for; program.name), this.mode
 
     function render-parsed string; program parsed-template
         validate-program; program
-        return this.render-range; program, this.values, 0, program.tokens.length, 0, (this.autoescape-for; program.name), this.mode
+        return this.render-range;
+            program, this.values, 0, program.tokens.length, 0,
+            (this.autoescape-for; program.name), this.mode
 
     function fetch string; name string, mode string = 'default'
         return this.fetch-context; name, this.values, 0, mode
@@ -106,7 +110,9 @@ public class template-engine
             mode = this.mode
         if mode == 'dynamic'
             program = parse-template; (this.loader.load; name), name
-            return this.render-range; program, context, 0, program.tokens.length, depth, (this.autoescape-for; name), mode
+            return this.render-range;
+                program, context, 0, program.tokens.length, depth,
+                (this.autoescape-for; name), mode
         if mode != 'compiled'
             throw template-error; 'template mode must be default, compiled or dynamic'
         available = this.templates.get.checked; name

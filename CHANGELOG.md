@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Use grouped imports in the template consumer, demo, and filesystem loader,
+  construction assignment blocks in the template-value factories, and call layout
+  for long rendering calls.
+
 - Migrate build-time template generation from staged `command` executables to
   `tool = "streaky/template::template"` with canonical
   `[terrane-dependencies.streaky.template]` dependencies. Terrane builds the exported
