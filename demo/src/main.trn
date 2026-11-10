@@ -1,7 +1,8 @@
 namespace template-demo
 
 from /core/collections import list, map
-from /streaky/template import template-value, text-value, bool-value, list-value, object-value, escape-html
+from /streaky/template import
+    template-value, text-value, bool-value, list-value, object-value, escape-html
 from /generated/template/template-demo import make-template-engine
 
 function badge string; value template-value

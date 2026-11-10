@@ -3,16 +3,14 @@ namespace streaky/template
 from /core/collections import list
 from /core/encodings import utf8
 from /core/errors import decode-error
-from /core/filesystem import filesystem-capability, filesystem-exists, filesystem-read-bounded
+from /core/filesystem import
+    filesystem-capability, filesystem-exists, filesystem-read-bounded
 from /core/filesystem/paths import join-path, path
 
-private function contains-template-nul bool; text string
-    data = text.encode; utf8
-    index int = 0
-    while index < data.length
-        if data[index] == 0
+private function contains-template-nul bool; text ref string
+    for byte in text.bytes
+        if byte == 0
             return true
-        index = index + 1
     return false
 
 public function check-template-name; name string
