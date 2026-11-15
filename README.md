@@ -4,10 +4,10 @@ A small, pure Terrane template engine with ahead-of-time Terrane source generati
 
 ## Build and run the demo
 
-From `packages/template` in the compiler checkout:
+From `packages/template`, with `terrane` installed and available on `PATH`:
 
 ```sh
-../../target/debug/terrane run demo
+terrane run demo
 ```
 
 The library exports its native generator through `consumer-tools`; Terrane builds and
@@ -102,14 +102,13 @@ From `packages/template/benchmarks/render`, with the native consumer built and t
 profiling collectors available (the benchmark's relative runtime roots require this cwd):
 
 ```sh
-terrane=../../../../target/debug/terrane
 for mode in compiled dynamic; do
-  "$terrane" profile record --cpu --embed-sources --retain-arguments \
+  terrane profile record --cpu --embed-sources --retain-arguments \
     -o "../../.trn/profile-$mode-cpu.trnprof" . -- "$mode"
-  "$terrane" profile record --allocations --embed-sources --retain-arguments \
+  terrane profile record --allocations --embed-sources --retain-arguments \
     -o "../../.trn/profile-$mode-allocations.trnprof" . -- "$mode" short
 done
-"$terrane" profile show ../../.trn/profile-compiled-allocations.trnprof \
+terrane profile show ../../.trn/profile-compiled-allocations.trnprof \
   --compare ../../.trn/profile-dynamic-allocations.trnprof --limit 10
 ```
 

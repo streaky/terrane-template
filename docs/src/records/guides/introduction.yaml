@@ -55,8 +55,8 @@ documentation:
       markdown: |-
         The template package exports its native generator; Terrane builds and refreshes it
         automatically when needed. Run the included demo from `packages/template/demo`:
-        invoke `../../../target/debug/terrane run .` for a repository-built binary, or
-        `terrane run .` when the compiler is installed. It uses `templates/page.html` and
+        invoke `terrane run .` with the compiler installed and available on `PATH`.
+        It uses `templates/page.html` and
         demonstrates object/list assignment, escaping, includes, and a widget.
   sections:
     - id: start-here
