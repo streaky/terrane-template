@@ -142,17 +142,23 @@ private function generate-range string; program ref parsed-template, function-na
         if has-output
             source = source + '    autoescape = engine.autoescape-for; ' + (quoted-source; program.name) + "\n"
     cursor int = start
+    output-parts = ''
+    output-count int = 0
     while cursor < finish
         token = ref tokens[cursor]
+        operand = generated-output-operand; token, context-name, indent-level
+        if operand != none
+            output-parts = output-parts + ' + ' + operand
+            output-count = output-count + 1
+        # Flatten straight-line output without creating unbounded expression trees.
+        if output-count > 0 and (output-count == 12 or operand == none)
+            source = source + indent + 'output = output' + output-parts + "\n"
+            output-parts = ''
+            output-count = 0
+        if operand != none
+            cursor = cursor + 1
+            continue
         switch token.kind
-            case 'text'
-                source = source + indent + 'output = output + ' + (quoted-source; token.text) + "\n"
-            case 'output'
-                parts = expression-parts; token.text
-                filter = ''
-                if parts.length == 2
-                    filter = parts[1].trim;
-                source = source + indent + 'output = output + (format-template-value; ' + (generated-value; parts[0], context-name) + ', autoescape, ' + (quoted-source; filter) + ")\n"
             case 'if'
                 negate = condition-negated; token.text
                 condition = condition-expression; token.text
@@ -182,18 +188,32 @@ private function generate-range string; program ref parsed-template, function-na
                     source = source + indent + 'if sequence' + cursor + ".items.length == 0\n" + indent + '    check-template-depth; depth + ' + (indent-level + 1) + "\n"
                     source = source + (generate-range; program, function-name, context-name, (token.alternate + 1), token.end, (indent-level + 1), false)
                 cursor = token.end
-            case 'include'
-                source = source + indent + 'output = output + (engine.fetch-context; ' + (quoted-source; (unquote; token.text)) + ', ' + context-name + ', depth + ' + (indent-level + 1) + ", 'compiled')\n"
-            case 'widget'
-                words = template-words; token.text
-                argument = '(empty-value;)'
-                if words.length == 2
-                    argument = generated-value; words[1], context-name
-                source = source + indent + 'output = output + (engine.render-widget; ' + (quoted-source; words[0]) + ', ' + argument + ")\n"
         cursor = cursor + 1
+    if output-count > 0
+        source = source + indent + 'output = output' + output-parts + "\n"
     if top-level
         source = source + "    return output\n"
     return source
+
+private function generated-output-operand string|none; token ref template-token, context-name string, indent-level int
+    switch token.kind
+        case 'text'
+            return quoted-source; token.text
+        case 'output'
+            parts = expression-parts; token.text
+            filter = ''
+            if parts.length == 2
+                filter = parts[1].trim;
+            return '(format-template-value; ' + (generated-value; parts[0], context-name) + ', autoescape, ' + (quoted-source; filter) + ')'
+        case 'include'
+            return '(engine.fetch-context; ' + (quoted-source; (unquote; token.text)) + ', ' + context-name + ', depth + ' + (indent-level + 1) + ", 'compiled')"
+        case 'widget'
+            words = template-words; token.text
+            argument = '(empty-value;)'
+            if words.length == 2
+                argument = generated-value; words[1], context-name
+            return '(engine.render-widget; ' + (quoted-source; words[0]) + ', ' + argument + ')'
+    return none
 
 private function generated-value string; expression string, context-name string
     expression = expression.trim;

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Batch adjacent output in generated renderers so they copy the existing output
+  once per group rather than once per fragment, without changing evaluation order.
+
 - Borrow parsed tokens during rendering and source generation, avoid a second
   renderer or widget lookup, and skip UTF-8 copies when scanning simple template
   expressions. Quote generated literals in one non-cascading replacement pass.

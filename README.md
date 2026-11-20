@@ -139,6 +139,12 @@ copy-on-write storage: read-only fetches share backing storage, but adding itera
 item-dependent loops therefore still have context-size-dependent costs. Generated empty
 and literal-only bodies skip creating a loop context.
 
+Generated renderers group adjacent text, substitutions, includes, and widgets
+into bounded concatenation expressions. Each group copies the existing output
+once, evaluates fragments in template order, and stops at a control-flow boundary.
+This reduces rendering work; it does not make the output buffer persistent or
+change dynamic rendering.
+
 ## Verify
 
 From `packages/template` in the Terrane checkout, with the current checkout compiler

@@ -87,6 +87,19 @@ function test-widget-callback-and-error-parity;
     assert-equal-string; (engine.fetch; 'widget.html'), "<strong>&lt;x&gt;</strong>|<strong></strong>\n"
     assert-equal-string; (engine.fetch; 'widget.html', 'dynamic'), (engine.fetch; 'widget.html')
 
+function test-long-output-runs-preserve-order-across-branches;
+    engine = fixture-engine;
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; engine, 'batched.html', mode), 'undefined variable: value'
+    engine.assign; 'value', (text-value; '<')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; engine, 'batched.html', mode), 'unregistered widget: badge'
+    engine.register-widget; 'badge', badge
+    engine.assign; 'show', (bool-value; false)
+    engine.assign; 'tail', (text-value; '&')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'batched.html', mode), "0&lt;<strong>&lt;</strong>1&lt;2&lt;3&lt;4&lt;5&lt;6&lt;7&lt;quiet8&amp;.\n"
+
 function test-strict-context-errors-match-both-modes;
     engine = fixture-engine;
     person map of string, template-value = map;
