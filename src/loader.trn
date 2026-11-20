@@ -49,7 +49,7 @@ public class template-loader
             loaded = filesystem-read-bounded; authority, target, 1048577
             if loaded.failed
                 if loaded.error-kind != 'not-found'
-                    throw template-error; loaded.message
+                    throw template-error; "cannot read template '{name}' at '{target.text}': {loaded.message}"
             else
                 if loaded.completed >= 1048577
                     throw template-error; 'template exceeds 1048576-byte limit: ' + name

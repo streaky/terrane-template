@@ -62,7 +62,8 @@ documentation:
 
         `add-path(directory, push=true)` registers a non-empty search directory. With the
         default `push=true`, it appends to the search list; lookup searches from newest to
-        oldest. `push=false` prepends a lower-priority directory. `render(source)` always
+        oldest. `push=false` prepends a lower-priority directory. Loading skips only
+        missing candidates; other read failures stop the search. `render(source)` always
         parses and renders the source dynamically. Every engine defaults to compiled
         fetching; use the generated `make-template-engine` factory to populate its inventory.
         A directly constructed engine has no compiled renderers until they are registered.

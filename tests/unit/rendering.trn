@@ -1,6 +1,8 @@
 namespace streaky/template
 
 from /core/collections import list, map, range
+from /core/filesystem import filesystem-capability, filesystem-create-directory
+from /core/filesystem/paths import path
 from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
 
 function fixture-path string; relative string
@@ -23,13 +25,37 @@ function test-loader-search-order-push-false-and-utf8;
 function test-loader-rejects-missing-and-invalid-names;
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'low')
-    for name in (list; 'missing.html', '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', "a0b", 'C:\\secret')
-        failed bool = false
+    for name in (list; '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', "a\0b", 'C:\\secret')
+        message = ''
         try
             engine.fetch; name, 'dynamic'
-        catch template-error
-            failed = true
-        assert-equal-bool; failed, true
+        catch template-error as error
+            message = error.message
+        assert-equal-string; message, 'invalid template name: ' + name
+    missing-message = ''
+    try
+        engine.fetch; 'missing.html', 'dynamic'
+    catch template-error as error
+        missing-message = error.message
+    assert-equal-string; missing-message, 'template not found: missing.html'
+
+function test-loader-skips-missing-candidate-but-reports-read-failure;
+    engine = instance template-engine;
+    engine.add-path; (fixture-path; 'low')
+    engine.add-path; 'override'
+    authority = filesystem-capability;
+    created = filesystem-create-directory; authority, (instance path; 'override')
+    assert-equal-bool; created.failed, false
+    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), "low\n"
+
+    blocked = filesystem-create-directory; authority, (instance path; 'override/welcome.html')
+    assert-equal-bool; blocked.failed, false
+    message = ''
+    try
+        engine.fetch; 'welcome.html', 'dynamic'
+    catch template-error as error
+        message = error.message
+    assert-equal-bool; (message.contains.start; "cannot read template 'welcome.html' at 'override/welcome.html': "), true
 
 function test-includes-inherit-render-context;
     engine = instance template-engine;

@@ -88,7 +88,7 @@ Both modes follow Jinja's recommended autoescape selection: `.html`, `.htm`, and
 ## Safety and limits
 
 Template source and search roots are trusted. The engine does not sandbox template authors. Files are bounded to 1 MiB and strict UTF-8; relative names reject NUL, absolute paths, backslashes, colons, empty components, `.` and `..`. Search roots may contain symlinks and are not a filesystem sandbox. Runtime `add-path` changes dynamic search precedence, not the already-generated inventory. Assignments, widgets, and escaping settings remain mutable in either mode.
-Dynamic lookup tries the next search root only if the candidate is not found. Other read failures are reported instead of silently selecting a lower-priority template.
+Dynamic lookup tries the next search root only if the candidate is not found. Other read failures report the template name, candidate path, and host error instead of selecting a lower-priority template.
 
 Parser/structural failures identify the template and zero-based UTF-8 byte offset. Build-time include failures also identify the first including template and its include offset. Widget callbacks may declare `throws throwable` (or a narrower compatible bound); errors propagate in both modes.
 
