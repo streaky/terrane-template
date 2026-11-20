@@ -88,10 +88,11 @@ Both modes follow Jinja's recommended autoescape selection: `.html`, `.htm`, and
 ## Safety and limits
 
 Template source and search roots are trusted. The engine does not sandbox template authors. Files are bounded to 1 MiB and strict UTF-8; relative names reject NUL, absolute paths, backslashes, colons, empty components, `.` and `..`. Search roots may contain symlinks and are not a filesystem sandbox. Runtime `add-path` changes dynamic search precedence, not the already-generated inventory. Assignments, widgets, and escaping settings remain mutable in either mode.
+Dynamic lookup tries the next search root only if the candidate is not found. Other read failures are reported instead of silently selecting a lower-priority template.
 
 Parser/structural failures identify the template and zero-based UTF-8 byte offset. Build-time include failures also identify the first including template and its include offset. Widget callbacks may declare `throws throwable` (or a narrower compatible bound); errors propagate in both modes.
 
-## Profile both rendering paths
+## Measure rendering and compilation
 
 `benchmarks/render` is an equal-work native workload: each iteration renders an
 interpolated page and a nested-loop/include page, then reports an output checksum.
@@ -119,9 +120,18 @@ event bound for this benchmark. CPU attribution may be unavailable even when agg
 capture timing and native allocation stacks are useful. Captures are ignored build
 artifacts under `.trn/`; retain them for subsequent inspection.
 
-Name and identifier validation scan borrowed UTF-8 byte views without allocating
-encoded byte buffers. Parsing still retains byte buffers where indexed lookahead
-and byte-range decoding are required.
+To time the edit-build loop, build from the benchmark directory with
+`terrane build --release .`, then change rendered text in a template in a
+disposable copy and rebuild without clearing `.trn/`. Compare the individual
+`preparing declaration consumer` timing with the broader consumer preparation,
+semantic analysis, lowering, and native build timings. An unchanged rebuild is
+a separate case: the generated-source cache can reuse the output, but the
+consumer still reads and parses the templates to discover the include closure.
+
+Name, identifier, and dotted-path validation scan borrowed UTF-8 byte views
+without allocating encoded buffers or splitting paths. Parsing still retains a
+byte buffer for indexed delimiter lookahead and byte-range decoding; expression
+splitting only needs that buffer when a pipe is present.
 
 Ahead-of-time rendering removes runtime parsing, not all allocation. Context maps use
 copy-on-write storage: read-only fetches share backing storage, but adding iterator and

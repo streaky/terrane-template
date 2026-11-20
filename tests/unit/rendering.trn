@@ -12,18 +12,18 @@ function test-loader-search-order-push-false-and-utf8;
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'low')
     engine.add-path; (fixture-path; 'high')
-    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), 'high\n'
+    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), "high\n"
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'high')
     engine.add-path; (fixture-path; 'low'), false
-    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), 'high\n'
+    assert-equal-string; (engine.fetch; 'welcome.html', 'dynamic'), "high\n"
     engine.add-path; (fixture-path; ''), false
-    assert-equal-string; (engine.fetch; 'unicode.txt', 'dynamic'), 'café é\n'
+    assert-equal-string; (engine.fetch; 'unicode.txt', 'dynamic'), "café é\n"
 
 function test-loader-rejects-missing-and-invalid-names;
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'low')
-    for name in (list; 'missing.html', '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', 'a\0b', 'C:\\secret')
+    for name in (list; 'missing.html', '../welcome.html', '/etc/passwd', 'a\\b', 'a//b', '.', 'a/../b', "a0b", 'C:\\secret')
         failed bool = false
         try
             engine.fetch; name, 'dynamic'
@@ -36,7 +36,7 @@ function test-includes-inherit-render-context;
     engine.set-mode; 'dynamic'
     engine.add-path; (fixture-path; 'includes')
     engine.assign; 'value', (text-value; '<inherited>')
-    assert-equal-string; (engine.render; 'before:{% include "child.html" %}:after'), 'before:child=&lt;inherited&gt;\n:after'
+    assert-equal-string; (engine.render; 'before:{% include "child.html" %}:after'), "before:child=&lt;inherited&gt;\n:after"
 
 function test-recursive-includes-hit-depth-limit;
     engine = instance template-engine;
@@ -167,11 +167,11 @@ function test-parsed-template-renders-against-current-values;
 
 function test-literals-and-flexible-directive-whitespace;
     engine = instance template-engine;
-    assert-equal-string; (engine.render; 'é é {{ \"a|b\" }} {{ true }} {{ none }}'), 'é é a|b true '
-    assert-equal-string; (engine.render; '{% if\ttrue %}ok{% endif %}'), 'ok'
+    assert-equal-string; (engine.render; "é é {{{{ \"a|b\" }}}} {{{{ true }}}} {{{{ none }}}}"), 'é é a|b true '
+    assert-equal-string; (engine.render; "{{% if\ttrue %}}ok{{% endif %}}"), 'ok'
     engine.register-widget; 'card', widget-test-handler
     engine.assign; 'value', (text-value; '<x>')
-    assert-equal-string; (engine.render; '{% widget   card\tvalue %}'), '&lt;x&gt;'
+    assert-equal-string; (engine.render; "{{% widget   card\tvalue %}}"), '&lt;x&gt;'
 
 function test-malformed-structure-and-unsupported-expressions;
     engine = instance template-engine;

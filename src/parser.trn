@@ -11,7 +11,7 @@ private class template-frame
         this.opener = opener
 
 private function template-words list of string; text string
-    text = text.replace; (list; '\t', '\r', '\n'), ' '
+    text = text.replace; (list; "\t", "\r", "\n"), ' '
     words list of string = list;
     for word in (text.split; ' ')
         if word != ''
@@ -19,12 +19,15 @@ private function template-words list of string; text string
     return words
 
 private function expression-parts list of string; text string
+    if not (text.contains; '|')
+        return list; text
     data = text.encode; utf8
+    size = data.length
     pieces list of string = list;
     quote int = 0
     start int = 0
     index int = 0
-    while index < data.length
+    while index < size
         byte = data[index]
         if quote == 0 and (byte == 39 or byte == 34)
             quote = byte
@@ -34,12 +37,13 @@ private function expression-parts list of string; text string
             pieces.append; (data[(range; start, index)].decode; utf8)
             start = index + 1
         index = index + 1
-    pieces.append; (data[(range; start, data.length)].decode; utf8)
+    pieces.append; (data[(range; start, size)].decode; utf8)
     return pieces
 
-private function quoted bool; value string
-    data = value.encode; utf8
-    return data.length >= 2 and ((data[0] == 39 and data[data.length - 1] == 39) or (data[0] == 34 and data[data.length - 1] == 34))
+private function quoted bool; value ref string
+    return (value.bytes.length >= 2 and
+        (((value.contains.start; '\'') and (value.contains.end; '\'')) or
+         ((value.contains.start; '"') and (value.contains.end; '"'))))
 
 private function unquote string; value string
     data = value.encode; utf8
@@ -55,7 +59,7 @@ public function template-include-name string; token template-token
 
 private function condition-negated bool; value string
     value = value.trim;
-    return value == 'not' or (value.contains.start; 'not ') or (value.contains.start; 'not\t') or (value.contains.start; 'not\n') or (value.contains.start; 'not\r')
+    return value == 'not' or (value.contains.start; 'not ') or (value.contains.start; "not\t") or (value.contains.start; "not\n") or (value.contains.start; "not\r")
 
 private function condition-expression string; value string
     value = value.trim;
@@ -66,12 +70,13 @@ private function condition-expression string; value string
 
 public function parse-template parsed-template; source string, name string = ''
     source-bytes = source.encode; utf8
+    size = source-bytes.length
     tokens list of template-token = list;
     frames list of template-frame = list;
     cursor = 0
     literal-start = 0
-    while cursor < source-bytes.length
-        if cursor + 1 < source-bytes.length and source-bytes[cursor] == 123 and (source-bytes[cursor + 1] == 123 or source-bytes[cursor + 1] == 37 or source-bytes[cursor + 1] == 35)
+    while cursor < size
+        if cursor + 1 < size and source-bytes[cursor] == 123 and (source-bytes[cursor + 1] == 123 or source-bytes[cursor + 1] == 37 or source-bytes[cursor + 1] == 35)
             if literal-start < cursor
                 literal = source-bytes[(range; literal-start, cursor)].decode; utf8
                 tokens.append; (instance template-token; 'text', literal, literal-start)
@@ -83,9 +88,9 @@ public function parse-template parsed-template; source string, name string = ''
                 close-byte = 35
             body-start = cursor + 2
             scan = body-start
-            while scan + 1 < source-bytes.length and not (source-bytes[scan] == close-byte and source-bytes[scan + 1] == 125)
+            while scan + 1 < size and not (source-bytes[scan] == close-byte and source-bytes[scan + 1] == 125)
                 scan = scan + 1
-            if scan + 1 >= source-bytes.length
+            if scan + 1 >= size
                 throw template-error; 'unclosed template delimiter', name, cursor
             body = source-bytes[(range; body-start, scan)].decode; utf8
             body = body.trim;
@@ -182,8 +187,8 @@ public function parse-template parsed-template; source string, name string = ''
             literal-start = cursor
         else
             cursor = cursor + 1
-    if literal-start < source-bytes.length
-        literal = source-bytes[(range; literal-start, source-bytes.length)].decode; utf8
+    if literal-start < size
+        literal = source-bytes[(range; literal-start, size)].decode; utf8
         tokens.append; (instance template-token; 'text', literal, literal-start)
     if frames.length > 0
         opener = tokens[frames[frames.length - 1].opener]
@@ -211,20 +216,27 @@ private function valid-condition bool; value string
     parts = expression-parts; expression
     return parts.length == 1 and (valid-atom; (expression.trim;))
 
-private function valid-path bool; value string
-    segments = value.split; '.'
-    if segments.length == 0
-        return false
-    for segment in segments
-        if not valid-identifier; segment
+private function valid-path bool; value ref string
+    segment-start bool = true
+    for byte in value.bytes
+        if byte == 46
+            if segment-start
+                return false
+            segment-start = true
+        else if identifier-byte; byte
+            segment-start = false
+        else
             return false
-    return true
+    return not segment-start
+
+private function identifier-byte bool; byte uint8
+    return (byte >= 97 and byte <= 122) or (byte >= 65 and byte <= 90) or (byte >= 48 and byte <= 57) or byte == 95 or byte == 45
 
 private function valid-identifier bool; value ref string
     if value.bytes.length == 0
         return false
     for byte in value.bytes
-        if not ((byte >= 97 and byte <= 122) or (byte >= 65 and byte <= 90) or (byte >= 48 and byte <= 57) or byte == 95 or byte == 45)
+        if not identifier-byte; byte
             return false
     return true
 

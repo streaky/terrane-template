@@ -4,7 +4,7 @@ from /core/collections import list
 from /core/encodings import utf8
 from /core/errors import decode-error
 from /core/filesystem import
-    filesystem-capability, filesystem-exists, filesystem-read-bounded
+    filesystem-capability, filesystem-read-bounded
 from /core/filesystem/paths import join-path, path
 
 private function contains-template-nul bool; text ref string
@@ -46,13 +46,11 @@ public class template-loader
             base = instance path; this.paths[search-index]
             relative = instance path; name
             target = join-path; base, relative
-            existing = filesystem-exists; authority, target
-            if existing.failed
-                throw template-error; existing.message
-            if existing.exists
-                loaded = filesystem-read-bounded; authority, target, 1048577
-                if loaded.failed
+            loaded = filesystem-read-bounded; authority, target, 1048577
+            if loaded.failed
+                if loaded.error-kind != 'not-found'
                     throw template-error; loaded.message
+            else
                 if loaded.completed >= 1048577
                     throw template-error; 'template exceeds 1048576-byte limit: ' + name
                 try

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Borrow parsed tokens during rendering and source generation, avoid a second
+  renderer or widget lookup, and skip UTF-8 copies when scanning simple template
+  expressions. Quote generated literals in one non-cascading replacement pass.
+
 - Use grouped imports in the template consumer, demo, and filesystem loader,
   construction assignment blocks in the template-value factories, and call layout
   for long rendering calls.
