@@ -115,28 +115,27 @@ public class template-engine
                 (this.autoescape-for; name), mode
         if mode != 'compiled'
             throw template-error; 'template mode must be default, compiled or dynamic'
-        available = this.templates.get.checked; name
-        if available != none
-            renderer = this.templates[name]
+        renderer = this.templates.get.checked; name
+        if renderer != none
             return renderer; this, context, depth
         throw template-error; 'template not available at build time: ' + name + '; use dynamic mode for runtime files'
 
     function render-widget string; name string, argument template-value
-        available = this.widgets.get.checked; name
-        if available != none
-            handler = this.widgets[name]
+        handler = this.widgets.get.checked; name
+        if handler != none
             return handler; argument
         throw template-error; 'unregistered widget: ' + name
 
     function display; name string, mode string = 'default'
         print; (this.fetch; name, mode)
 
-    private function render-range string; program parsed-template, context map of string, template-value, start int, finish int, depth int, autoescape bool, mode string
+    private function render-range string; program ref parsed-template, context map of string, template-value, start int, finish int, depth int, autoescape bool, mode string
         check-template-depth; depth
         output string = ''
         cursor int = start
+        tokens = ref program.tokens
         while cursor < finish
-            token = program.tokens[cursor]
+            token = ref tokens[cursor]
             switch token.kind
                 case 'text'
                     output = output + token.text
@@ -167,12 +166,14 @@ public class template-engine
                     boundary int = token.end
                     if token.alternate >= 0
                         boundary = token.alternate
+                    items = ref sequence.items
+                    count = items.length
                     index int = 0
-                    while index < sequence.items.length
-                        local-context = template-loop-context; context, token.name, sequence.items[index], index, sequence.items.length
+                    while index < count
+                        local-context = template-loop-context; context, token.name, items[index], index, count
                         output = output + (this.render-range; program, local-context, cursor + 1, boundary, depth + 1, autoescape, mode)
                         index = index + 1
-                    if sequence.items.length == 0 and token.alternate >= 0
+                    if count == 0 and token.alternate >= 0
                         output = output + (this.render-range; program, context, token.alternate + 1, token.end, depth + 1, autoescape, mode)
                     cursor = token.end
                 case 'include'

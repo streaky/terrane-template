@@ -79,7 +79,7 @@ function test-parser-reports-template-and-utf8-byte-offset;
 function test-negation-whitespace-and-quoted-pipe-conditions;
     engine = instance template-engine;
     engine.assign; 'show', (bool-value; false)
-    assert-equal-string; (engine.render; '{% if not\tshow %}tab{% endif %}{% if not\nshow %}line{% endif %}{% if "a|b" %}pipe{% endif %}'), 'tablinepipe'
+    assert-equal-string; (engine.render; "{{% if not\tshow %}}tab{{% endif %}}{{% if not\nshow %}}line{{% endif %}}{{% if \"a|b\" %}}pipe{{% endif %}}"), 'tablinepipe'
     failed bool = false
     try
         parse-template; '{% for loop in items %}{% endfor %}'

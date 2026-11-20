@@ -34,25 +34,25 @@ function save-runtime-template; name string, source string
 function test-generated-html-and-text-policy-parity;
     engine = fixture-engine;
     engine.assign; 'title', (text-value; '<x>')
-    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
-    assert-equal-string; (engine.fetch; 'plain.txt'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html'), "&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n"
+    assert-equal-string; (engine.fetch; 'plain.txt'), "<x>|<x>|&lt;x&gt;|a|b|true|\n"
     for name in (list; 'basic.html', 'plain.txt')
         assert-equal-string; (engine.fetch; name, 'dynamic'), (engine.fetch; name)
     engine.assign; 'title', (text-value; '<y>')
-    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;y&gt;|<y>|&lt;y&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html'), "&lt;y&gt;|<y>|&lt;y&gt;|a|b|true|\n"
 
 function test-compiled-escaping-policy-remains-configurable;
     engine = fixture-engine;
     engine.assign; 'title', (text-value; '<x>')
     engine.set-autoescape; false
-    assert-equal-string; (engine.fetch; 'basic.html'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html'), "<x>|<x>|&lt;x&gt;|a|b|true|\n"
     assert-equal-string; (engine.fetch; 'basic.html', 'dynamic'), (engine.fetch; 'basic.html')
     engine.set-autoescape; true
     engine.set-string-autoescape; false
-    assert-equal-string; (engine.fetch; 'plain.txt'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'plain.txt'), "&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n"
     assert-equal-string; (engine.fetch; 'plain.txt', 'dynamic'), (engine.fetch; 'plain.txt')
     engine.select-autoescape;
-    assert-equal-string; (engine.fetch; 'plain.txt'), '<x>|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'plain.txt'), "<x>|<x>|&lt;x&gt;|a|b|true|\n"
 
 function test-nested-branches-loops-includes-and-scope-parity;
     engine = fixture-engine;
@@ -66,17 +66,17 @@ function test-nested-branches-loops-includes-and-scope-parity;
     people.append; (object-value; second)
     engine.assign; 'people', (list-value; people)
     engine.assign; 'person', (text-value; 'outer')
-    assert-equal-string; (engine.fetch; 'nested.html'), 'true:false:F:1=&lt;Ada&gt;[<Ada>];false:true:N:2=Lin[Lin];\n'
+    assert-equal-string; (engine.fetch; 'nested.html'), "true:false:F:1=&lt;Ada&gt;[<Ada>];false:true:N:2=Lin[Lin];\n"
     assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), (engine.fetch; 'nested.html')
     assert-equal-string; (engine.render; '{{ person }}'), 'outer'
     assert-equal-bool; (engine.assigned; 'loop'), false
     empty list of template-value = list;
     engine.assign; 'people', (list-value; empty)
-    assert-equal-string; (engine.fetch; 'nested.html'), 'empty\n'
-    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), 'empty\n'
+    assert-equal-string; (engine.fetch; 'nested.html'), "empty\n"
+    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), "empty\n"
     engine.assign; 'show', (bool-value; false)
-    assert-equal-string; (engine.fetch; 'nested.html'), 'hidden\n'
-    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), 'hidden\n'
+    assert-equal-string; (engine.fetch; 'nested.html'), "hidden\n"
+    assert-equal-string; (engine.fetch; 'nested.html', 'dynamic'), "hidden\n"
 
 function test-widget-callback-and-error-parity;
     engine = fixture-engine;
@@ -84,8 +84,21 @@ function test-widget-callback-and-error-parity;
     assert-equal-string; (rendering-error; engine, 'widget.html', 'compiled'), 'unregistered widget: badge'
     assert-equal-string; (rendering-error; engine, 'widget.html', 'dynamic'), 'unregistered widget: badge'
     engine.register-widget; 'badge', badge
-    assert-equal-string; (engine.fetch; 'widget.html'), '<strong>&lt;x&gt;</strong>|<strong></strong>\n'
+    assert-equal-string; (engine.fetch; 'widget.html'), "<strong>&lt;x&gt;</strong>|<strong></strong>\n"
     assert-equal-string; (engine.fetch; 'widget.html', 'dynamic'), (engine.fetch; 'widget.html')
+
+function test-long-output-runs-preserve-order-across-branches;
+    engine = fixture-engine;
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; engine, 'batched.html', mode), 'undefined variable: value'
+    engine.assign; 'value', (text-value; '<')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (rendering-error; engine, 'batched.html', mode), 'unregistered widget: badge'
+    engine.register-widget; 'badge', badge
+    engine.assign; 'show', (bool-value; false)
+    engine.assign; 'tail', (text-value; '&')
+    for mode in (list; 'compiled', 'dynamic')
+        assert-equal-string; (engine.fetch; 'batched.html', mode), "0&lt;<strong>&lt;</strong>1&lt;2&lt;3&lt;4&lt;5&lt;6&lt;7&lt;quiet8&amp;.\n"
 
 function test-strict-context-errors-match-both-modes;
     engine = fixture-engine;
@@ -110,7 +123,7 @@ function test-runtime-only-template-is-not-in-build-inventory;
     engine = fixture-engine;
     engine.assign; 'title', (text-value; '<x>')
     assert-equal-string; (rendering-error; engine, 'runtime-only.txt', 'compiled'), 'template not available at build time: runtime-only.txt; use dynamic mode for runtime files'
-    assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), '<x>\n'
+    assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), "<x>\n"
     engine.add-path; '.'
     save-runtime-template; 'runtime-only.txt', 'changed {{ title }}'
     assert-equal-string; (engine.fetch; 'runtime-only.txt', 'dynamic'), 'changed <x>'
@@ -125,15 +138,15 @@ function test-fetch-mode-overrides-do-not-change-engine-mode;
     engine.add-path; '.'
     save-runtime-template; 'basic.html', 'runtime {{ title }}'
     assert-equal-string; (engine.fetch; 'basic.html', 'dynamic'), 'runtime &lt;x&gt;'
-    assert-equal-string; (engine.fetch; 'basic.html'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html'), "&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n"
     engine.set-mode; 'dynamic'
     assert-equal-string; (engine.fetch; 'basic.html'), 'runtime &lt;x&gt;'
-    assert-equal-string; (engine.fetch; 'basic.html', 'compiled'), '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    assert-equal-string; (engine.fetch; 'basic.html', 'compiled'), "&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n"
     assert-equal-string; (engine.fetch; 'basic.html'), 'runtime &lt;x&gt;'
 
 function test-literal-unicode-and-control-byte-parity;
     engine = fixture-engine;
-    expected = 'é é apostrophe\'s backslash\\ tab\t carriage\r null'.concat; (b'\0'.decode; utf8), ' a|b\n'
+    expected = "é é apostrophe's backslash\\ tab\t carriage\r null".concat; (b'\0'.decode; utf8), " a|b\n"
     assert-equal-string; (engine.fetch; 'literals.txt'), expected
     assert-equal-string; (engine.fetch; 'literals.txt', 'dynamic'), expected
 
@@ -167,11 +180,11 @@ function test-empty-and-literal-only-control-body-parity;
     items.append; (text-value; 'y')
     engine.assign; 'items', (list-value; items)
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (engine.fetch; 'empty.html', mode), 'ABCLLliteralliteral\n'
+        assert-equal-string; (engine.fetch; 'empty.html', mode), "ABCLLliteralliteral\n"
     empty-items list of template-value = list;
     engine.assign; 'items', (list-value; empty-items)
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (engine.fetch; 'empty.html', mode), 'ABC\n'
+        assert-equal-string; (engine.fetch; 'empty.html', mode), "ABC\n"
     engine.assign; 'items', (text-value; 'wrong kind')
     for mode in (list; 'compiled', 'dynamic')
         assert-equal-string; (rendering-error; engine, 'empty.html', mode), 'for requires a list value'
@@ -180,17 +193,17 @@ function test-negation-whitespace-and-quoted-condition-parity;
     engine = fixture-engine;
     engine.assign; 'show', (bool-value; false)
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (engine.fetch; 'conditions.html', mode), 'TNP\n'
+        assert-equal-string; (engine.fetch; 'conditions.html', mode), "TNP\n"
     engine.assign; 'show', (bool-value; true)
     for mode in (list; 'compiled', 'dynamic')
-        assert-equal-string; (engine.fetch; 'conditions.html', mode), 'P\n'
+        assert-equal-string; (engine.fetch; 'conditions.html', mode), "P\n"
 
 function test-interpreted-includes-follow-engine-mode;
     engine = make-template-engine;
     engine.assign; 'title', (text-value; '<x>')
     source = '{% include "basic.html" %}'
     program = parse-template; source
-    expected = '&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n'
+    expected = "&lt;x&gt;|<x>|&lt;x&gt;|a|b|true|\n"
     assert-equal-string; (engine.render; source), expected
     assert-equal-string; (engine.render-parsed; program), expected
     engine.add-path; '.'

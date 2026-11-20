@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Batch adjacent output in generated renderers so they copy the existing output
+  once per group rather than once per fragment, without changing evaluation order.
+
+- Borrow parsed tokens during rendering and source generation, avoid a second
+  renderer or widget lookup, and skip UTF-8 copies when scanning simple template
+  expressions.
+- Emit double-quoted generated literals and escape NUL and braces so control
+  characters round-trip and literal text cannot become Terrane interpolation.
+- Read candidates directly instead of probing for existence before opening.
+  Fall through only on `not-found`; other read failures identify the template
+  and the candidate path.
+
 - Use grouped imports in the template consumer, demo, and filesystem loader,
   construction assignment blocks in the template-value factories, and call layout
   for long rendering calls.

@@ -73,7 +73,7 @@ class ConsumerTests(unittest.TestCase):
             app = Path(directory)
             (app / 'src').mkdir()
             (app / 'templates').mkdir()
-            literal = "template-lookup|bool-value|empty-value|é é|'\\\n\r\tend"
+            literal = "template-lookup|bool-value|empty-value|é é|'\\\n\r\tend|\" {literal} \0"
             (app / 'templates/literal.txt').write_bytes(literal.encode('utf-8'))
             (app / 'templates/condition.txt').write_text('{% if "a|b" %}q{% endif %}{% if true %}t{% endif %}{% if none %}bad{% endif %}')
             manifest = f'''package = "consumer-regression"
