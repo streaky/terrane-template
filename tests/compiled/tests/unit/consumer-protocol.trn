@@ -1,0 +1,97 @@
+namespace template-compiled-tests
+
+from /core/collections import list, range
+from /core/testing import
+    assert, assert-equal-int, assert-equal-string, fail, test-compiler, test-infrastructure-failure, test-package-root
+from /core/process import environment
+from /core/process/child import process-options, run-process
+from /core/documents import document-value
+from /core/documents/json import parse-json, default-json-options
+
+function consumer-process-succeeded bool; code int|none
+    if code != none
+        return code == 0
+    return false
+
+private function protocol-response document-value; executable string, args list of string, directory string
+    options = instance process-options;
+    options.directory = directory
+    request = '{"format":1,"declarations":[]}'.encode; utf8
+    captured = run-process; executable, args, options, request, timeout-ms = 20000
+    if not consumer-process-succeeded; captured.status.exit-code
+        fail; 'consumer failed: ' + (captured.stderr.decode; utf8)
+    output = captured.stdout.decode; utf8
+    parsed = parse-json; output, (default-json-options;)
+    if parsed.failed
+        fail; 'consumer returned invalid JSON: ' + parsed.message + '; stdout: ' + output
+    return parsed.value
+
+private function invoking-compiler string;
+    compiler = test-compiler;
+    if compiler != none
+        return compiler
+    throw instance test-infrastructure-failure; 'consumer tests require test-compiler context'
+
+function build-consumer-test-fixture string; manifest string
+    compiler = invoking-compiler;
+    options = instance process-options;
+    options.inherit-environment = false
+    allowed list of string = list; 'PATH', 'HOME', 'CARGO_HOME', 'RUSTUP_HOME', 'RUSTUP_TOOLCHAIN'
+    for entry in (environment;)
+        for key in allowed
+            if entry.name.is-text and entry.name.text == key
+                options.environment.append; entry
+    built = run-process; compiler, (list; 'build', manifest), options, timeout-ms = 120000
+    stderr = built.stderr.decode; utf8
+    if not consumer-process-succeeded; built.status.exit-code
+        fail; 'cannot build consumer fixture ' + manifest + ': ' + stderr
+    if (stderr.lower;).contains; 'warning'
+        fail; 'consumer fixture build emitted warning: ' + stderr
+    output = built.stdout.decode; utf8
+    return output.trim;
+
+private function consumer-error-message string; response document-value
+    sources = response.field; 'generated_sources'
+    assert-equal-string; sources.value.kind, 'list'
+    assert-equal-int; (sources.value.length;), 0
+    diagnostics = response.field; 'diagnostics'
+    diagnostic = diagnostics.value.item; 0
+    message = diagnostic.value.field; 'message'
+    assert-equal-string; message.value.kind, 'string'
+    return message.value.scalar
+
+function consumer-test-suite-root string;
+    root = test-package-root;
+    if root != none
+        return root
+    throw instance test-infrastructure-failure; 'consumer tests require a selected package suite'
+
+function test-consumer-reports-argument-and-template-errors;
+    suite-root = consumer-test-suite-root;
+    package-root = suite-root + '/../..'
+    executable = build-consumer-test-fixture; package-root + '/consumer/package.toml'
+    cases list of list of string = list
+    empty list of string = list;
+    cases.append; empty
+    cases.append; (list; '--namespace', 'generated/test', '--root')
+    cases.append; (list; '--namespace', 'generated/test', '--root', '.', '--template')
+    cases.append; (list; '--namespace', 'generated/test', '--namespace', 'generated/again')
+    cases.append; (list; '--unknown')
+    cases.append; (list; '--root')
+    cases.append; (list; '--namespace', 'generated/test', '--runtime-root', '')
+    expected list of string = list; '--namespace', '--root', '--template', '--namespace', '--unknown', '--root', '--runtime-root'
+    for index in (range; 0, cases.length)
+        response = protocol-response; executable, cases[index], suite-root
+        message = consumer-error-message; response
+        assert; (message.contains; expected[index])
+
+    fixtures = suite-root + '/../consumer-fixtures'
+    names list of string = list; 'malformed-entry', 'missing-include', 'malformed-include'
+    expected-first list of string = list; 'entry.html at byte 2', 'missing.html', 'child.html at byte 4'
+    expected-second list of string = list; 'invalid if condition', 'included by template entry.html at byte 2', 'included by template entry.html at byte 2'
+    args = list; '--namespace', 'generated/test', '--root', '.', '--template', 'entry.html'
+    for index in (range; 0, names.length)
+        response = protocol-response; executable, args, fixtures + '/' + names[index]
+        message = consumer-error-message; response
+        assert; (message.contains; expected-first[index])
+        assert; (message.contains; expected-second[index])

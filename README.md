@@ -151,18 +151,14 @@ available as `terrane` on `PATH`:
 ```sh
 export TERRANE="$(command -v terrane)"
 terrane test
-python tests/consumer.py
 terrane build demo/package.toml
 terrane run demo
 ```
 
-`terrane test` runs the library and compiled-render cases in one suite. Terrane
-builds the consumer automatically and retains generated sources and build caches
-locally. Cases run in isolated working directories and locate static fixtures
-through the suite root.
-
-The Python 3 checks exercise the consumer's JSON diagnostics and verify cache reuse
-and invalidation after an included template changes. They retain their build
-workspace under `.trn/`. The demo commands build and run the AOT example.
+`terrane test` runs the library, compiled-render, and consumer protocol and cache
+checks in one suite. It uses the invoking compiler for fixture builds and keeps
+the include-invalidation workspace and build caches under `.trn/`. Cases run in
+isolated working directories and locate static fixtures through the suite root.
+The demo commands build and run the AOT example.
 
 The short package/dependency name is `template`; its manifest identity and public namespace are `streaky/template`.

@@ -12,6 +12,11 @@ path = "../.."
 
 [testing]
 unit = "tests/unit"
+compiler = true
+timeout-ms = 420000
+
+[testing.profile]
+capabilities = ["filesystem", "process"]
 
 [consumers.template]
 tool = "streaky/template::template"
