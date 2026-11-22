@@ -150,21 +150,19 @@ available as `terrane` on `PATH`:
 
 ```sh
 export TERRANE="$(command -v terrane)"
-terrane test --argument "$PWD/tests/fixtures" .
-terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
+terrane test
 python tests/consumer.py
 terrane build demo/package.toml
 terrane run demo
 ```
 
-The first command runs the full package unit suite; the second builds and runs the
-compiled-template integration suite against its fixture directory. The Python consumer
-tests require Python 3 and build the exported consumer through `terrane build`; they
-cover diagnostics, literal-only and condition-only generated units, recursive includes,
-cache reuse/invalidation, and compile and render the generated application. The demo
-commands build and execute the configured AOT example. These commands require the
-current Terrane compiler and the package's pinned native dependencies to be available.
-Test arguments provide read-only fixture roots because Terrane runs tests in isolated
-working directories. Runtime-write cases write only in those directories.
+`terrane test` runs the library and compiled-render cases in one suite. Terrane
+builds the consumer automatically and retains generated sources and build caches
+locally. Cases run in isolated working directories and locate static fixtures
+through the suite root.
+
+The Python 3 checks exercise the consumer's JSON diagnostics and verify cache reuse
+and invalidation after an included template changes. They retain their build
+workspace under `.trn/`. The demo commands build and run the AOT example.
 
 The short package/dependency name is `template`; its manifest identity and public namespace are `streaky/template`.

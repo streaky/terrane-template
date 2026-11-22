@@ -17,3 +17,13 @@ unit = "tests/unit"
 tool = "streaky/template::template"
 args = ["--namespace", "generated/template/compiled-tests", "--root", "templates", "--template", "basic.html", "--template", "plain.txt", "--template", "nested.html", "--template", "widget.html", "--template", "missing.html", "--template", "notobject.html", "--template", "sequence.html", "--template", "recursive.html", "--template", "literals.txt", "--template", "empty.html", "--template", "conditions.html", "--template", "batched.html"]
 declarations = ["/template-compiled-tests::main"]
+
+[consumers.static-literals]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-literals", "--root", "templates", "--template", "static-literals.txt"]
+declarations = ["/template-compiled-tests::main"]
+
+[consumers.static-conditions]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-conditions", "--root", "templates", "--template", "static-conditions.txt"]
+declarations = ["/template-compiled-tests::main"]

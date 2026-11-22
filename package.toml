@@ -12,4 +12,4 @@ template = "consumer/package.toml"
 capabilities = ["filesystem"]
 
 [testing]
-unit = "tests/unit"
+suite = "tests/compiled/package.toml"

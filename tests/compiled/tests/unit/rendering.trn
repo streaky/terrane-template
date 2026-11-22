@@ -3,13 +3,13 @@ namespace streaky/template
 from /core/collections import list, map, range
 from /core/filesystem import filesystem-capability, filesystem-create-directory
 from /core/filesystem/paths import path
-from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
+from /core/testing import assert-equal-bool, assert-equal-string, test-package-root, fail
 
 function fixture-path string; relative string
-    arguments = test-arguments;
-    if arguments.length != 1 or not arguments[0].is-text
-        fail; 'run tests with --argument pointing to the absolute tests/fixtures directory'
-    return arguments[0].text.concat; '/', relative
+    root = test-package-root;
+    if root == none
+        fail; 'run tests with a selected package suite'
+    return root + '/fixtures/' + relative
 function test-loader-search-order-push-false-and-utf8;
     engine = instance template-engine;
     engine.add-path; (fixture-path; 'low')
