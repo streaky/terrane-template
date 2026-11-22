@@ -1,8 +1,8 @@
 namespace streaky-template-consumer
 
-from /terrane/annotation-consumer-protocol import
+from /core/build/consumer import
     read-request, emit-source, emit-error, error-origin, consumer-error
-from /terrane/consumer-cache import source-cache
+from /core/build/consumer/cache import source-cache
 from /core/collections import list
 from /core/documents import document-value, make-document-none
 from /core/errors import throwable

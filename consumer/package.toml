@@ -9,9 +9,3 @@ capabilities = ["filesystem", "process"]
 
 [terrane-dependencies.streaky.template]
 path = ".."
-
-[terrane-dependencies.terrane.annotation-consumer-protocol]
-path = "../../../tools/annotation-consumers/protocol"
-
-[terrane-dependencies.terrane.consumer-cache]
-path = "../../../tools/annotation-consumers/cache"
