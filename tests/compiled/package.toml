@@ -13,6 +13,7 @@ path = "../.."
 [testing]
 unit = "tests/unit"
 compiler = true
+# Cold consumer and fixture builds can take longer than the default case deadline.
 timeout-ms = 420000
 
 [testing.profile]

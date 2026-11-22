@@ -8,7 +8,7 @@ consumer-regression = "src"
 capabilities = ["filesystem"]
 
 [terrane-dependencies.streaky.template]
-# Resolved from the staged workspace at .trn/consumer-regression.
+# The checked-in fixture and the staged workspace are both two levels below the library.
 path = "../.."
 
 [consumers.literal]

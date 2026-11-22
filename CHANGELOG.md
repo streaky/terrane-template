@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Run the library, compiled rendering and consumer checks with a single
+  `terrane test`. The native suite replaces the Python harness and retains its
+  generated sources and rebuild fixtures under `.trn/`.
+
 - Batch adjacent output in generated renderers so they copy the existing output
   once per group rather than once per fragment, without changing evaluation order.
 

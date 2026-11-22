@@ -1,5 +1,6 @@
-namespace streaky/template
+namespace template-compiled-tests
 
+from /streaky/template import escape-html, list-value, parse-template, template-engine, template-value, text-value
 from /core/collections import list
 from /core/filesystem import filesystem-capability, filesystem-write-atomic
 from /core/filesystem/paths import path

@@ -36,6 +36,7 @@ function build-consumer-test-fixture string; manifest string
     compiler = invoking-compiler;
     options = instance process-options;
     options.inherit-environment = false
+    // Mirror the runner's toolchain allowlist; do not include per-case context or TMPDIR in build keys.
     allowed list of string = list; 'PATH', 'HOME', 'CARGO_HOME', 'RUSTUP_HOME', 'RUSTUP_TOOLCHAIN'
     for entry in (environment;)
         for key in allowed
@@ -64,7 +65,7 @@ function consumer-test-suite-root string;
     root = test-package-root;
     if root != none
         return root
-    throw instance test-infrastructure-failure; 'consumer tests require a selected package suite'
+    throw instance test-infrastructure-failure; 'missing test package root; run with terrane test'
 
 function test-consumer-reports-argument-and-template-errors;
     suite-root = consumer-test-suite-root;
@@ -81,7 +82,7 @@ function test-consumer-reports-argument-and-template-errors;
     cases.append; (list; '--namespace', 'generated/test', '--runtime-root', '')
     expected list of string = list; '--namespace', '--root', '--template', '--namespace', '--unknown', '--root', '--runtime-root'
     for index in (range; 0, cases.length)
-        response = protocol-response; executable, cases[index], suite-root
+        response = protocol-response; executable, cases[index], '.'
         message = consumer-error-message; response
         assert; (message.contains; expected[index])
 

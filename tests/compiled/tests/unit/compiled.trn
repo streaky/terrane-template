@@ -16,7 +16,7 @@ private function badge string; value template-value
 function fixture-engine template-engine;
     root = test-package-root;
     if root == none
-        fail; 'run tests with a selected package suite'
+        fail; 'missing test package root; run with terrane test'
     engine = make-template-engine;
     engine.add-path; root + '/templates'
     return engine
