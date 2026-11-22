@@ -149,7 +149,6 @@ From `packages/template` in the Terrane checkout, with the current checkout comp
 available as `terrane` on `PATH`:
 
 ```sh
-export TERRANE="$(command -v terrane)"
 terrane test
 terrane build demo/package.toml
 terrane run demo
