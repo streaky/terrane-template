@@ -160,4 +160,6 @@ the include-invalidation workspace and build caches under `.trn/`. Cases run in
 isolated working directories and locate static fixtures through the suite root.
 The demo commands build and run the AOT example.
 
+Consumer fixtures live in [`tests/consumer-fixtures`](tests/consumer-fixtures) (protocol errors), [`tests/invalidation`](tests/invalidation) (staged for cache tests), and [`tests/compiled/consumer-fixtures/isolated`](tests/compiled/consumer-fixtures/isolated) (standalone build of the shared static templates).
+
 The short package/dependency name is `template`; its manifest identity and public namespace are `streaky/template`.
