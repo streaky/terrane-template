@@ -1,0 +1,8 @@
+namespace consumer-isolated
+from /generated/template/static-literals import make-template-engine as make-literals
+from /generated/template/static-conditions import make-template-engine as make-conditions
+function main;
+    literals = make-literals;
+    print; (literals.fetch; 'static-literals.txt')
+    conditions = make-conditions;
+    print; (conditions.fetch; 'static-conditions.txt')

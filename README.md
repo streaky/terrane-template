@@ -149,22 +149,17 @@ From `packages/template` in the Terrane checkout, with the current checkout comp
 available as `terrane` on `PATH`:
 
 ```sh
-export TERRANE="$(command -v terrane)"
-terrane test --argument "$PWD/tests/fixtures" .
-terrane test --argument "$PWD/tests/compiled/templates" tests/compiled
-python tests/consumer.py
+terrane test
 terrane build demo/package.toml
 terrane run demo
 ```
 
-The first command runs the full package unit suite; the second builds and runs the
-compiled-template integration suite against its fixture directory. The Python consumer
-tests require Python 3 and build the exported consumer through `terrane build`; they
-cover diagnostics, literal-only and condition-only generated units, recursive includes,
-cache reuse/invalidation, and compile and render the generated application. The demo
-commands build and execute the configured AOT example. These commands require the
-current Terrane compiler and the package's pinned native dependencies to be available.
-Test arguments provide read-only fixture roots because Terrane runs tests in isolated
-working directories. Runtime-write cases write only in those directories.
+`terrane test` runs the library, compiled-render, and consumer protocol and cache
+checks in one suite. It uses the invoking compiler for fixture builds and keeps
+the include-invalidation workspace and build caches under `.trn/`. Cases run in
+isolated working directories and locate static fixtures through the suite root.
+The demo commands build and run the AOT example.
+
+Consumer fixtures live in [`tests/consumer-fixtures`](tests/consumer-fixtures) (protocol errors), [`tests/invalidation`](tests/invalidation) (staged for cache tests), and [`tests/compiled/consumer-fixtures/isolated`](tests/compiled/consumer-fixtures/isolated) (standalone build of the shared static templates).
 
 The short package/dependency name is `template`; its manifest identity and public namespace are `streaky/template`.

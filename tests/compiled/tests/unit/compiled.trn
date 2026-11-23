@@ -2,21 +2,23 @@ namespace template-compiled-tests
 
 from /streaky/template import template-engine, template-value, text-value, bool-value, list-value, object-value, escape-html, parse-template, template-error
 from /generated/template/compiled-tests import make-template-engine
+from /generated/template/static-literals import make-template-engine as make-static-literals-engine
+from /generated/template/static-conditions import make-template-engine as make-static-conditions-engine
 from /core/filesystem import filesystem-capability, filesystem-write-atomic
 from /core/filesystem/paths import path
 from /core/errors import throwable
-from /core/testing import assert-equal-bool, assert-equal-string, test-arguments, fail
+from /core/testing import assert-equal-bool, assert-equal-string, test-package-root, fail
 from /core/collections import map, list
 
 private function badge string; value template-value
     return '<strong>'.concat; (escape-html; value.text), '</strong>'
 
 function fixture-engine template-engine;
-    arguments = test-arguments;
-    if arguments.length != 1 or not arguments[0].is-text
-        fail; 'supply the absolute templates directory as --argument'
+    root = test-package-root;
+    if root == none
+        fail; 'missing test package root; run with terrane test'
     engine = make-template-engine;
-    engine.add-path; arguments[0].text
+    engine.add-path; root + '/templates'
     return engine
 
 function rendering-error string; engine ref template-engine, name string, mode string
@@ -30,6 +32,13 @@ function rendering-error string; engine ref template-engine, name string, mode s
 function save-runtime-template; name string, source string
     saved = filesystem-write-atomic; (filesystem-capability;), (instance path; name), (source.encode; utf8)
     assert-equal-bool; saved.failed, false
+
+function test-independent-static-literal-and-condition-consumers;
+    literals = make-static-literals-engine;
+    expected = "template-lookup|bool-value|empty-value|é é|'\\\n\r\tend|\" {{literal}} ".concat; (b'\0'.decode; utf8)
+    assert-equal-string; (literals.fetch; 'static-literals.txt'), expected
+    conditions = make-static-conditions-engine;
+    assert-equal-string; (conditions.fetch; 'static-conditions.txt'), "qt\n"
 
 function test-generated-html-and-text-policy-parity;
     engine = fixture-engine;

@@ -1,0 +1,106 @@
+namespace template-compiled-tests
+
+from /core/collections import list
+from /core/filesystem import
+    filesystem, filesystem-capability, filesystem-create-directories, filesystem-read-bounded, filesystem-write-atomic
+from /core/filesystem/paths import path
+from /core/process/child import run-process
+from /core/testing import
+    assert-equal-bytes, assert-equal-string, fail, test-infrastructure-failure
+from /core/errors import throwable
+
+function test-isolated-static-template-consumer;
+    root = consumer-test-suite-root;
+    manifest = root + '/consumer-fixtures/isolated/package.toml'
+    executable = build-consumer-test-fixture; manifest
+    result = run-process; executable, timeout-ms = 20000
+    if not consumer-process-succeeded; result.status.exit-code
+        fail; 'isolated template consumer failed: ' + (result.stderr.decode; utf8)
+    expected = "template-lookup|bool-value|empty-value|é é|'\\\n\r\tend|\" {{literal}} ".concat; (b'\0'.decode; utf8)
+    expected = expected.concat; "\nqt\n\n"
+    assert-equal-bytes; result.stdout, (expected.encode; utf8)
+
+// Keep the OS lock alive across the real rebuilds. The filesystem API has no advisory lock.
+// Inline Rust shares the enclosing throwing function's Result; operation()? propagates through it.
+private function with-consumer-regression-lock throws throwable; filename string, operation function to none throws throwable
+    failure string|none = rust
+        use std::fs::OpenOptions;
+        match OpenOptions::new().create(true).truncate(false).write(true).open(filename.as_str())
+            .and_then(|file| { file.lock()?; Ok(file) })
+        {
+            Ok(_guard) => { operation()?; None }
+            Err(error) => Some(error.to_string()),
+        }
+    if failure != none
+        throw instance test-infrastructure-failure; 'cannot lock consumer test workspace: ' + failure
+
+private function render-consumer-regression bytes; manifest string
+    executable = build-consumer-test-fixture; manifest
+    result = run-process; executable, timeout-ms = 20000
+    if not consumer-process-succeeded; result.status.exit-code
+        fail; 'consumer regression application failed: ' + (result.stderr.decode; utf8)
+    return result.stdout
+
+private function prepare-fixture-directory; authority filesystem, location string
+    directory = filesystem-create-directories; authority, (instance path; location)
+    if directory.failed
+        throw instance test-infrastructure-failure; 'cannot create ' + location + ': ' + directory.message
+
+private function stage-consumer-fixture; authority filesystem, source-root string, workspace string, relative string
+    source = source-root + '/' + relative
+    destination = workspace + '/' + relative
+    original = filesystem-read-bounded; authority, (instance path; source), 1048576
+    if original.failed
+        throw instance test-infrastructure-failure; 'cannot read ' + source + ': ' + original.message
+    existing = filesystem-read-bounded; authority, (instance path; destination), 1048576
+    if existing.failed or existing.data != original.data
+        saved = filesystem-write-atomic; authority, (instance path; destination), original.data
+        if saved.failed
+            throw instance test-infrastructure-failure; 'cannot stage ' + destination + ': ' + saved.message
+
+// Content equality alone would also pass if the consumer atomically rewrote its cache.
+private function cache-state-identity string; state string
+    identity string|none = rust
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(state.as_str()).ok()
+            .map(|metadata| format!("{}:{}", metadata.dev(), metadata.ino()))
+    if identity != none
+        return identity
+    throw instance test-infrastructure-failure; 'cannot stat consumer cache: ' + state
+
+private function check-transitive-include-invalidation; source string, workspace string
+    authority = filesystem-capability;
+    prepare-fixture-directory; authority, workspace + '/src'
+    prepare-fixture-directory; authority, workspace + '/templates'
+    for relative in (list; 'package.toml', 'src/main.trn', 'templates/literal.txt', 'templates/partial.txt')
+        stage-consumer-fixture; authority, source, workspace, relative
+    manifest = workspace + '/package.toml'
+    state = workspace + '/.trn/consumer-state/build/literal/source.json'
+    literal = workspace + '/templates/literal.txt'
+    partial = workspace + '/templates/partial.txt'
+    assert-equal-bytes; (render-consumer-regression; manifest), b'entry\n'
+    unchanged = cache-state-identity; state
+    assert-equal-bytes; (render-consumer-regression; manifest), b'entry\n'
+    assert-equal-string; (cache-state-identity; state), unchanged
+    try
+        include-entry = "{{% include 'partial.txt' %}}".encode; utf8
+        saved-entry = filesystem-write-atomic; authority, (instance path; literal), include-entry
+        if saved-entry.failed
+            throw instance test-infrastructure-failure; 'cannot edit entry template: ' + saved-entry.message
+        assert-equal-bytes; (render-consumer-regression; manifest), b'first\n'
+        saved-partial = filesystem-write-atomic; authority, (instance path; partial), b'second'
+        if saved-partial.failed
+            throw instance test-infrastructure-failure; 'cannot write changed include: ' + saved-partial.message
+        assert-equal-bytes; (render-consumer-regression; manifest), b'second\n'
+    finally
+        stage-consumer-fixture; authority, source, workspace, 'templates/literal.txt'
+        stage-consumer-fixture; authority, source, workspace, 'templates/partial.txt'
+
+function test-transitive-include-only-invalidation throws throwable;
+    root = consumer-test-suite-root;
+    source = root + '/../invalidation'
+    cache = root + '/../../.trn'
+    prepare-fixture-directory; (filesystem-capability;), cache
+    operation = function;
+        check-transitive-include-invalidation; source, cache + '/consumer-regression'
+    with-consumer-regression-lock; cache + '/consumer-regression.lock', operation

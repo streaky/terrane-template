@@ -1,0 +1,17 @@
+package = "consumer-regression"
+artifact = "executable"
+
+[namespaces]
+consumer-regression = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[terrane-dependencies.streaky.template]
+# The checked-in fixture and the staged workspace are both two levels below the library.
+path = "../.."
+
+[consumers.literal]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/regression/literal", "--root", "templates", "--template", "literal.txt"]
+declarations = ["/consumer-regression::main"]

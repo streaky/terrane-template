@@ -12,8 +12,24 @@ path = "../.."
 
 [testing]
 unit = "tests/unit"
+compiler = true
+# Cold consumer and fixture builds can take longer than the default case deadline.
+timeout-ms = 420000
+
+[testing.profile]
+capabilities = ["filesystem", "process"]
 
 [consumers.template]
 tool = "streaky/template::template"
 args = ["--namespace", "generated/template/compiled-tests", "--root", "templates", "--template", "basic.html", "--template", "plain.txt", "--template", "nested.html", "--template", "widget.html", "--template", "missing.html", "--template", "notobject.html", "--template", "sequence.html", "--template", "recursive.html", "--template", "literals.txt", "--template", "empty.html", "--template", "conditions.html", "--template", "batched.html"]
+declarations = ["/template-compiled-tests::main"]
+
+[consumers.static-literals]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-literals", "--root", "templates", "--template", "static-literals.txt"]
+declarations = ["/template-compiled-tests::main"]
+
+[consumers.static-conditions]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-conditions", "--root", "templates", "--template", "static-conditions.txt"]
 declarations = ["/template-compiled-tests::main"]

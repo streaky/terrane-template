@@ -1,0 +1,5 @@
+namespace consumer-regression
+from /generated/regression/literal import make-template-engine as create-literal
+function main;
+    engine = create-literal;
+    print; (engine.fetch; 'literal.txt')

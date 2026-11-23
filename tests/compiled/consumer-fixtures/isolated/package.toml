@@ -1,0 +1,21 @@
+package = "consumer-isolated"
+artifact = "executable"
+
+[namespaces]
+consumer-isolated = "src"
+
+[profile]
+capabilities = ["filesystem"]
+
+[terrane-dependencies.streaky.template]
+path = "../../../.."
+
+[consumers.static-literals]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-literals", "--root", "../../templates", "--template", "static-literals.txt"]
+declarations = ["/consumer-isolated::main"]
+
+[consumers.static-conditions]
+tool = "streaky/template::template"
+args = ["--namespace", "generated/template/static-conditions", "--root", "../../templates", "--template", "static-conditions.txt"]
+declarations = ["/consumer-isolated::main"]
