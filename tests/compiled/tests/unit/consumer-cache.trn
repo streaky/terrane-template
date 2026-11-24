@@ -21,7 +21,6 @@ function test-isolated-static-template-consumer;
     expected = expected.concat; "\nqt\n\n"
     assert-equal-bytes; result.stdout, (expected.encode; utf8)
 
-// Inline Rust shares the enclosing throwing function's Result; operation()? propagates through it.
 private function render-consumer-regression bytes; manifest string
     executable = build-consumer-test-fixture; manifest
     result = run-process; executable, timeout-ms = 20000
@@ -47,6 +46,7 @@ private function stage-consumer-fixture; authority filesystem, source-root strin
             throw instance test-infrastructure-failure; 'cannot stage ' + destination + ': ' + saved.message
 
 // Content equality alone would also pass if the consumer atomically rewrote its cache.
+// Retain Rust: filesystem-metadata exposes no inode/device identity to distinguish replacement.
 private function cache-state-identity string; state string
     identity string|none = rust
         use std::os::unix::fs::MetadataExt;
