@@ -2,7 +2,8 @@ namespace template-compiled-tests
 
 from /core/collections import list
 from /core/filesystem import
-    filesystem, filesystem-capability, filesystem-create-directories, filesystem-read-bounded, filesystem-write-atomic
+    filesystem, filesystem-capability, filesystem-create-directories,
+    filesystem-create-temporary-directory, filesystem-read-bounded, filesystem-write-atomic
 from /core/filesystem/paths import path
 from /core/process/child import run-process
 from /core/testing import
@@ -20,20 +21,7 @@ function test-isolated-static-template-consumer;
     expected = expected.concat; "\nqt\n\n"
     assert-equal-bytes; result.stdout, (expected.encode; utf8)
 
-// Keep the OS lock alive across the real rebuilds. The filesystem API has no advisory lock.
 // Inline Rust shares the enclosing throwing function's Result; operation()? propagates through it.
-private function with-consumer-regression-lock throws throwable; filename string, operation function to none throws throwable
-    failure string|none = rust
-        use std::fs::OpenOptions;
-        match OpenOptions::new().create(true).truncate(false).write(true).open(filename.as_str())
-            .and_then(|file| { file.lock()?; Ok(file) })
-        {
-            Ok(_guard) => { operation()?; None }
-            Err(error) => Some(error.to_string()),
-        }
-    if failure != none
-        throw instance test-infrastructure-failure; 'cannot lock consumer test workspace: ' + failure
-
 private function render-consumer-regression bytes; manifest string
     executable = build-consumer-test-fixture; manifest
     result = run-process; executable, timeout-ms = 20000
@@ -82,25 +70,22 @@ private function check-transitive-include-invalidation; source string, workspace
     unchanged = cache-state-identity; state
     assert-equal-bytes; (render-consumer-regression; manifest), b'entry\n'
     assert-equal-string; (cache-state-identity; state), unchanged
-    try
-        include-entry = "{{% include 'partial.txt' %}}".encode; utf8
-        saved-entry = filesystem-write-atomic; authority, (instance path; literal), include-entry
-        if saved-entry.failed
-            throw instance test-infrastructure-failure; 'cannot edit entry template: ' + saved-entry.message
-        assert-equal-bytes; (render-consumer-regression; manifest), b'first\n'
-        saved-partial = filesystem-write-atomic; authority, (instance path; partial), b'second'
-        if saved-partial.failed
-            throw instance test-infrastructure-failure; 'cannot write changed include: ' + saved-partial.message
-        assert-equal-bytes; (render-consumer-regression; manifest), b'second\n'
-    finally
-        stage-consumer-fixture; authority, source, workspace, 'templates/literal.txt'
-        stage-consumer-fixture; authority, source, workspace, 'templates/partial.txt'
+    include-entry = "{{% include 'partial.txt' %}}".encode; utf8
+    saved-entry = filesystem-write-atomic; authority, (instance path; literal), include-entry
+    if saved-entry.failed
+        throw instance test-infrastructure-failure; 'cannot edit entry template: ' + saved-entry.message
+    assert-equal-bytes; (render-consumer-regression; manifest), b'first\n'
+    saved-partial = filesystem-write-atomic; authority, (instance path; partial), b'second'
+    if saved-partial.failed
+        throw instance test-infrastructure-failure; 'cannot write changed include: ' + saved-partial.message
+    assert-equal-bytes; (render-consumer-regression; manifest), b'second\n'
 
 function test-transitive-include-only-invalidation throws throwable;
     root = consumer-test-suite-root;
     source = root + '/../invalidation'
     cache = root + '/../../.trn'
-    prepare-fixture-directory; (filesystem-capability;), cache
-    operation = function;
-        check-transitive-include-invalidation; source, cache + '/consumer-regression'
-    with-consumer-regression-lock; cache + '/consumer-regression.lock', operation
+    authority = filesystem-capability;
+    prepare-fixture-directory; authority, cache
+    # Keep the staged manifest two levels below the library, but isolate each run.
+    workspace = filesystem-create-temporary-directory; authority, (instance path; cache)
+    check-transitive-include-invalidation; source, (workspace.location;).text
